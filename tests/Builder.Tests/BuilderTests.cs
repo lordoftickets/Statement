@@ -1,4 +1,5 @@
 ﻿using Builder.Tests.TestStates;
+using NUnit.Framework;
 using Statement;
 using Statement.Fluent.Api;
 
