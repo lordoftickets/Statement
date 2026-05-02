@@ -52,7 +52,7 @@ public class StateMachine
         throw new InvalidOperationException();
     }
     
-    public T TryGetCurrentState<T>(out bool result) where T : class
+    public T? TryGetCurrentState<T>(out bool result) where T : class
     {
         if (_currenState is T state)
         {
@@ -61,13 +61,10 @@ public class StateMachine
         }
 
         result = false;
-        return default;
+        return null;
     }
 
-    public object? GetCurrentState()
-    {
-        return _currenState;
-    }
+    public object? GetCurrentState() => _currenState;
 
     internal void RegisterInnerState<TState>() where TState : class, new()
         => _registeredStates.Add(new RegisteredStateBundle(typeof(TState)));

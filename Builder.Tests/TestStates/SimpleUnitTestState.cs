@@ -1,6 +1,6 @@
 ﻿namespace Builder.Tests.TestStates;
 
-public class SimpleState : IState
+public class SimpleUnitTestState : IUnitTestState
 {
     public void Test()
     {

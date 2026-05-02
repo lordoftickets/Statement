@@ -20,16 +20,42 @@ public class BuilderTests
     public void SimpleHappyPath()
     {
         var machine = MachineBuilder.Create();
-        machine.AddState<SimpleState>()
+        machine.AddState<SimpleUnitTestState>();
+        machine.AddState<AdvancedUnitTestState>();
+        
+        machine.SetCurrentState<SimpleUnitTestState>();
+        Assert.That(machine.GetCurrentState<IUnitTestState>(), Is.TypeOf<SimpleUnitTestState>());
+        
+        machine.SetCurrentState<AdvancedUnitTestState>();
+        Assert.That(machine.GetCurrentState<IUnitTestState>(), Is.TypeOf<AdvancedUnitTestState>());
+    }
+
+    [Test]
+    public void SimpleHappyPath_Compiled_SameResult()
+    {
+        var machine = MachineBuilder.Create();
+        machine.AddState<SimpleUnitTestState>();
+        machine.AddState<AdvancedUnitTestState>();
+        
+        machine.SetCurrentState<SimpleUnitTestState>();
+        Assert.That(machine.GetCurrentState<IUnitTestState>(), Is.TypeOf<SimpleUnitTestState>());
+        
+        machine.SetCurrentState<AdvancedUnitTestState>();
+        Assert.That(machine.GetCurrentState<IUnitTestState>(), Is.TypeOf<AdvancedUnitTestState>());
+    }
+    
+    [Test]
+    public void SimpleHappyPath_TransitionMethodsWereCalled()
+    {
+        var machine = MachineBuilder.Create();
+        machine.AddState<SimpleUnitTestState>()
             .AddOnEntry(SimpleHappyPathCallback)
             .AddOnExit(SimpleHappyPathCallbackOnExit);
         
-        machine.AddState<AdvancedState>();
+        machine.AddState<AdvancedUnitTestState>();
         
-        machine.Compile();
-        
-        machine.SetCurrentState<SimpleState>();
-        machine.SetCurrentState<AdvancedState>();
+        machine.SetCurrentState<SimpleUnitTestState>();
+        machine.SetCurrentState<AdvancedUnitTestState>();
         
         Assert.That(_wasCalledOnEntry, Is.True);
         Assert.That(_wasCalledOnExit, Is.True);
@@ -39,23 +65,23 @@ public class BuilderTests
     public void TransitionRulePreventsStateTransition()
     {
         var machine = MachineBuilder.Create();
-        machine.AddState<SimpleState>()
+        machine.AddState<SimpleUnitTestState>()
             .AddOnEntry(SimpleHappyPathCallback)
             .AddOnExit(SimpleHappyPathCallbackOnExit)
-            .ForbidNextState<AdvancedState>();
+            .ForbidNextState<AdvancedUnitTestState>();
         
-        machine.AddState<AdvancedState>();
+        machine.AddState<AdvancedUnitTestState>();
         
-        machine.SetCurrentState<SimpleState>();
-        machine.SetCurrentState<AdvancedState>();
+        machine.SetCurrentState<SimpleUnitTestState>();
+        machine.SetCurrentState<AdvancedUnitTestState>();
 
-        Assert.That(machine.GetCurrentState<IState>(), Is.TypeOf<SimpleState>());
+        Assert.That(machine.GetCurrentState<IUnitTestState>(), Is.TypeOf<SimpleUnitTestState>());
     }
 
     private void SimpleHappyPathCallback(StateMachine machine)
     {
-        var currentState = machine.GetCurrentState<IState>();
-        if (currentState is SimpleState)
+        var currentState = machine.GetCurrentState<IUnitTestState>();
+        if (currentState is SimpleUnitTestState)
         {
             _wasCalledOnEntry = true;
         }
@@ -63,8 +89,8 @@ public class BuilderTests
     
     private void SimpleHappyPathCallbackOnExit(StateMachine machine)
     {
-        var currentState = machine.GetCurrentState<IState>();
-        if (currentState is AdvancedState)
+        var currentState = machine.GetCurrentState<IUnitTestState>();
+        if (currentState is AdvancedUnitTestState)
         {
             _wasCalledOnExit = true;
         }
