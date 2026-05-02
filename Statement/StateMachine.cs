@@ -1,23 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Statement.Rules;
 
 namespace Statement;
 
 public class StateMachine
 {
-    private readonly HashSet<RegisteredStateBundle> _registeredStates;
+    private readonly HashSet<RegisteredStateBundle> _registeredStates = [];
     private object? _currenState;
-    private readonly List<object> _states;
+    private readonly List<object> _states = [];
 
-    internal StateMachine()
-    {
-        _states = [];
-        _registeredStates = [];
-    }
-    
     public void SetCurrentState<T>()
     {
+        if (!CheckTransitionRule<T>(_currenState))
+        {
+            //forbidden transition
+            return;
+        }
+        
         var state = _states.FirstOrDefault(s => s is T);
         if (state is not null)
         {
@@ -82,6 +83,21 @@ public class StateMachine
         var bundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == stateType);
         bundle?.OnExitCallback = callback;
     }
+    
+    internal void AddExitRule(Type stateType, Type type)
+    {
+        var bundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == stateType);
+        if (bundle is null)
+        {
+            return;
+        }
+        if (bundle.TransitionRule is null)
+        {
+            bundle.TransitionRule = new TransitionRule();
+        }
+
+        bundle.TransitionRule.ForbiddenNextStates.Add(type);
+    }
 
     internal void Compile()
     {
@@ -107,5 +123,16 @@ public class StateMachine
     {
         var callback = _registeredStates.FirstOrDefault(s => s.RegisteredState == state.GetType())?.OnExitCallback;
         callback?.Invoke(this);
+    }
+
+    private bool CheckTransitionRule<T>(object? state)
+    {
+        var bundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == state?.GetType());
+        if (bundle?.TransitionRule is null || state is null)
+        {
+            return true;
+        }
+
+        return !bundle.TransitionRule.ForbiddenNextStates.Contains(typeof(T));
     }
 }

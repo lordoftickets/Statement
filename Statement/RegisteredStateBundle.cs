@@ -1,10 +1,12 @@
 ﻿using System;
+using Statement.Rules;
 
 namespace Statement;
 
-public class RegisteredStateBundle(Type registeredState)
+internal class RegisteredStateBundle(Type registeredState)
 {
-    public Type RegisteredState { get; set; } = registeredState;
-    public Action<StateMachine>? OnEntryCallback { get; set; }
-    public Action<StateMachine>? OnExitCallback { get; set; }
+    internal Type RegisteredState { get; set; } = registeredState;
+    internal Action<StateMachine>? OnEntryCallback { get; set; }
+    internal Action<StateMachine>? OnExitCallback { get; set; }
+    internal TransitionRule? TransitionRule { get; set; }
 }

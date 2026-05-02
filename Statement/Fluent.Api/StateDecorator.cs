@@ -2,8 +2,8 @@
 
 namespace Statement.Fluent.Api;
 
-public class StateDecorator
+public class StateDecorator(Type innerStateType, StateMachine machine)
 {
-    public StateMachine Machine { get; set; }
-    public Type InnerStateType { get; set; }
+    public StateMachine Machine { get; set; } = machine;
+    public Type InnerStateType { get; set; } = innerStateType;
 }

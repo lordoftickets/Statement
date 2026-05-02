@@ -35,6 +35,23 @@ public class BuilderTests
         Assert.That(_wasCalledOnExit, Is.True);
     }
 
+    [Test]
+    public void TransitionRulePreventsStateTransition()
+    {
+        var machine = MachineBuilder.Create();
+        machine.AddState<SimpleState>()
+            .AddOnEntry(SimpleHappyPathCallback)
+            .AddOnExit(SimpleHappyPathCallbackOnExit)
+            .ForbidNextState<AdvancedState>();
+        
+        machine.AddState<AdvancedState>();
+        
+        machine.SetCurrentState<SimpleState>();
+        machine.SetCurrentState<AdvancedState>();
+
+        Assert.That(machine.GetCurrentState<IState>(), Is.TypeOf<SimpleState>());
+    }
+
     private void SimpleHappyPathCallback(StateMachine machine)
     {
         var currentState = machine.GetCurrentState<IState>();

@@ -11,7 +11,7 @@ public static class MachineBuilder
         public StateDecorator AddState<TState>() where TState : class, new()
         {
             machine.RegisterInnerState<TState>();
-            return new StateDecorator() { InnerStateType = typeof(TState), Machine = machine};
+            return new StateDecorator(typeof(TState), machine);
         }
 
         public void Compile() => machine.Compile();
@@ -27,10 +27,18 @@ public static class MachineBuilder
             return decorator;
         }
 
-        public void AddOnExit(Action<StateMachine> callback)
+        public StateDecorator AddOnExit(Action<StateMachine> callback)
         {
             var machine = decorator.Machine;
             machine.AddOnExit(decorator.InnerStateType, callback);
+            return decorator;
+        }
+
+        public StateDecorator ForbidNextState<T>()
+        {
+            var machine = decorator.Machine;
+            machine.AddExitRule(decorator.InnerStateType, typeof(T));
+            return decorator;
         }
     }
 
