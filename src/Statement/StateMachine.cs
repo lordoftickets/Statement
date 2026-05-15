@@ -11,9 +11,11 @@ public class StateMachine : IStateMachine
     private readonly HashSet<RegisteredStateBundle> _registeredStates = [];
     private object? _currenState;
     private readonly List<object> _states = [];
+    
+    private readonly RuleMaster _ruleMaster = new();
 
     private bool IsCompiledWithType => _innerParentType is not null;
-    
+
     public void SetCurrentState<T>()
     {
         if (!CheckTransitionRule<T>(_currenState))
@@ -148,12 +150,9 @@ public class StateMachine : IStateMachine
 
     private bool CheckTransitionRule<T>(object? state)
     {
-        var bundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == state?.GetType());
-        if (bundle?.TransitionRule is null || state is null)
-        {
-            return true;
-        }
-
-        return !bundle.TransitionRule.ForbiddenNextStates.Contains(typeof(T));
+        var targetBundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == typeof(T));
+        var currentBundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == state?.GetType());
+        
+        return _ruleMaster.IsAllowed(currentBundle, targetBundle);
     }
 }
