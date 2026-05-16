@@ -40,16 +40,16 @@ public class StateMachine : IStateMachine
         throw new InvalidOperationException();
     }
 
-    public T? TryGetCurrentState<T>(out bool result) where T : class
+    public bool TryGetCurrentState<T>(out T? result) where T : class
     {
         if (_current?.GetOrCreateInstance() is T state)
         {
-            result = true;
-            return state;
+            result = state;
+            return true;
         }
 
-        result = false;
-        return null;
+        result = null;
+        return false;
     }
 
     public object? GetCurrentState() => _current?.GetOrCreateInstance();

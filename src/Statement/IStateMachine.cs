@@ -5,5 +5,5 @@ public interface IStateMachine
     void SetCurrentState<T>();
     T GetCurrentState<T>() where T : class;
     object? GetCurrentState();
-    T? TryGetCurrentState<T>(out bool result) where T : class;
+    bool TryGetCurrentState<T>(out T? result) where T : class;
 }
