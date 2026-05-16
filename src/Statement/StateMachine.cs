@@ -67,6 +67,16 @@ public class StateMachine : IStateMachine
         _nodes.Add(typeof(TState), new StateNode(typeof(TState)));
     }
 
+    internal void RegisterInnerState<TState>(TState instance) where TState : class
+    {
+        if (instance is null) throw new ArgumentNullException(nameof(instance));
+        if (_nodes.ContainsKey(typeof(TState)))
+        {
+            throw new InvalidOperationException($"State {typeof(TState)} is already registered.");
+        }
+        _nodes.Add(typeof(TState), new StateNode(typeof(TState), instance));
+    }
+
     internal void AddOnEntry(Type stateType, Action<StateMachine> callback)
     {
         if (_nodes.TryGetValue(stateType, out var node))

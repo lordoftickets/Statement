@@ -2,7 +2,7 @@ using System;
 
 namespace Statement.Fluent.Api;
 
-public sealed class StateBuilder<TState> where TState : class, new()
+public sealed class StateBuilder<TState> where TState : class
 {
     private readonly StateMachine _machine;
 

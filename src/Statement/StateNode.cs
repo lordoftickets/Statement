@@ -3,9 +3,9 @@ using Statement.Rules;
 
 namespace Statement;
 
-internal sealed class StateNode(Type type)
+internal sealed class StateNode(Type type, object? preBuiltInstance = null)
 {
-    private object? _instance;
+    private object? _instance = preBuiltInstance;
 
     internal Type Type { get; } = type;
     internal Action<StateMachine>? OnEntry { get; set; }
