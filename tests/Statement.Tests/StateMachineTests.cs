@@ -1,6 +1,5 @@
 using Builder.Tests.TestStates;
 using Builder.Tests.TestStates.Statement;
-using NUnit.Framework;
 using Statement;
 using Statement.Fluent.Api;
 
@@ -13,9 +12,10 @@ public class StateMachineTests
     [SetUp]
     public void Setup()
     {
-        _machine = MachineBuilder.Create();
-        _machine.AddState<SimpleUnitTestState>();
-        _machine.AddState<AdvancedUnitTestState>();
+        _machine = StateMachineBuilder.New()
+            .AddState<SimpleUnitTestState>()
+            .AddState<AdvancedUnitTestState>()
+            .Build();
     }
 
     [Test]
@@ -47,8 +47,9 @@ public class StateMachineTests
     [Test]
     public void SetCurrentState_FirstTransition_DoesNotInvokeOnExit()
     {
-        var machine = MachineBuilder.Create();
-        machine.AddState<SimpleStatement>();
+        var machine = StateMachineBuilder.New()
+            .AddState<SimpleStatement>()
+            .Build();
 
         machine.SetCurrentState<SimpleStatement>();
 
@@ -60,9 +61,10 @@ public class StateMachineTests
     [Test]
     public void SetCurrentState_TransitionInvokesOnExitThenOnEntry()
     {
-        var machine = MachineBuilder.Create();
-        machine.AddState<SimpleStatement>();
-        machine.AddState<AdvancedUnitTestState>();
+        var machine = StateMachineBuilder.New()
+            .AddState<SimpleStatement>()
+            .AddState<AdvancedUnitTestState>()
+            .Build();
 
         machine.SetCurrentState<SimpleStatement>();
         var simple = machine.GetCurrentState<SimpleStatement>();
@@ -76,11 +78,11 @@ public class StateMachineTests
     [Test]
     public void SetCurrentState_DuringOnExit_CurrentStateIsStillExitingState()
     {
-        var machine = MachineBuilder.Create();
         object? currentDuringExit = null;
-        machine.AddState<SimpleUnitTestState>()
-            .AddOnExit(m => currentDuringExit = m.GetCurrentState());
-        machine.AddState<AdvancedUnitTestState>();
+        var machine = StateMachineBuilder.New()
+            .AddState<SimpleUnitTestState>(s => s.OnExit((_, m) => currentDuringExit = m.GetCurrentState()))
+            .AddState<AdvancedUnitTestState>()
+            .Build();
 
         machine.SetCurrentState<SimpleUnitTestState>();
         machine.SetCurrentState<AdvancedUnitTestState>();
@@ -91,11 +93,11 @@ public class StateMachineTests
     [Test]
     public void SetCurrentState_DuringOnEntry_CurrentStateIsNewState()
     {
-        var machine = MachineBuilder.Create();
         object? currentDuringEntry = null;
-        machine.AddState<SimpleUnitTestState>()
-            .AddOnEntry(m => currentDuringEntry = m.GetCurrentState());
-        machine.AddState<AdvancedUnitTestState>();
+        var machine = StateMachineBuilder.New()
+            .AddState<SimpleUnitTestState>(s => s.OnEntry((_, m) => currentDuringEntry = m.GetCurrentState()))
+            .AddState<AdvancedUnitTestState>()
+            .Build();
 
         machine.SetCurrentState<SimpleUnitTestState>();
 
@@ -105,12 +107,13 @@ public class StateMachineTests
     [Test]
     public void SetCurrentState_ForbiddenTransition_DoesNotChangeStateOrCallCallbacks()
     {
-        var machine = MachineBuilder.Create();
         var onExitCalled = false;
-        machine.AddState<SimpleUnitTestState>()
-            .AddOnExit(_ => onExitCalled = true)
-            .ForbidNextState<AdvancedUnitTestState>();
-        machine.AddState<AdvancedUnitTestState>();
+        var machine = StateMachineBuilder.New()
+            .AddState<SimpleUnitTestState>(s => s
+                .OnExit(() => onExitCalled = true)
+                .CannotTransitionTo<AdvancedUnitTestState>())
+            .AddState<AdvancedUnitTestState>()
+            .Build();
 
         machine.SetCurrentState<SimpleUnitTestState>();
         machine.SetCurrentState<AdvancedUnitTestState>();

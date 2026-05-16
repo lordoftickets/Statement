@@ -1,5 +1,5 @@
 using Builder.Tests.TestStates;
-using Statement;
+using NUnit.Framework;
 using Statement.Fluent.Api;
 
 namespace Builder.Tests;
@@ -7,53 +7,25 @@ namespace Builder.Tests;
 [TestFixture]
 public class CompileStateMachineTests
 {
-    private StateMachine _machine;
-    
-    [SetUp]
-    public void Setup()
+    [Test]
+    public void For_BaseType_HappyPath()
     {
-        _machine = new StateMachine();
+        Assert.DoesNotThrow(() => StateMachineBuilder.For<IUnitTestState>()
+            .AddState<SimpleUnitTestState>()
+            .AddState<AdvancedUnitTestState>()
+            .Build());
     }
 
-    [Test]
-    public void CompileAgainst_HappyPath()
-    {
-        _machine.AddState<SimpleUnitTestState>();
-        _machine.AddState<AdvancedUnitTestState>();
-        
-        _machine.CompileAgainst<IUnitTestState>();
-        Assert.Pass();
-        //assert success if no exception is thrown
-    }
-    
-    [Test]
-    public void CompileAgainst_InvalidState_ThrowsException()
-    {
-        _machine.AddState<SimpleUnitTestState>();
-        _machine.AddState<AdvancedUnitTestState>();
-        _machine.AddState<StatementStateMachineTests>();//invalid - not a state
-        
-        Assert.Throws<InvalidOperationException>(() => _machine.CompileAgainst<IUnitTestState>());
-    }
-    
-    [Test]
-    public void Compile_WrongState_ThrowsNoException()
-    {
-        _machine.AddState<SimpleUnitTestState>();
-        _machine.AddState<AdvancedUnitTestState>();
-        _machine.AddState<StatementStateMachineTests>();
+    // Invalid-state case (e.g. AddState<SomethingThatIsntIUnitTestState>) is now
+    // a compile-time error thanks to the `where TState : TBase` constraint on
+    // StateMachineBuilder<TBase>.AddState — no runtime test needed.
 
-        _machine.Compile();
-        Assert.Pass();        
-    }
-    
     [Test]
-    public void Compile_RightState_ThrowsNoException()
+    public void New_AcceptsAnyState()
     {
-        _machine.AddState<SimpleUnitTestState>();
-        _machine.AddState<AdvancedUnitTestState>();
-
-        _machine.Compile();
-        Assert.Pass();        
+        Assert.DoesNotThrow(() => StateMachineBuilder.New()
+            .AddState<SimpleUnitTestState>()
+            .AddState<AdvancedUnitTestState>()
+            .Build());
     }
 }

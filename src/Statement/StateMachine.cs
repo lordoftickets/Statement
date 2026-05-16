@@ -6,6 +6,8 @@ namespace Statement;
 
 public class StateMachine : IStateMachine
 {
+    internal StateMachine() { }
+
     private Type? _innerParentType;
     private readonly Dictionary<Type, StateNode> _nodes = new();
     private StateNode? _current;
@@ -15,9 +17,11 @@ public class StateMachine : IStateMachine
 
     private bool IsCompiledWithType => _innerParentType is not null;
 
-    public void SetCurrentState<T>()
+    public void SetCurrentState<T>() => SetCurrentStateByType(typeof(T));
+
+    internal void SetCurrentStateByType(Type stateType)
     {
-        if (!_nodes.TryGetValue(typeof(T), out var target))
+        if (!_nodes.TryGetValue(stateType, out var target))
         {
             return;
         }
