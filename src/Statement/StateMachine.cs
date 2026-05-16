@@ -4,6 +4,11 @@ using Statement.Rules;
 
 namespace Statement;
 
+/// <summary>
+/// A state machine that holds a set of registered state types and transitions between them.
+/// Instances are created and configured through <see cref="Statement.Fluent.Api.StateMachineBuilder"/>.
+/// Transitions are gated by configured rules and surrounded by registered entry/exit callbacks.
+/// </summary>
 public class StateMachine : IStateMachine
 {
     internal StateMachine() { }
@@ -17,6 +22,12 @@ public class StateMachine : IStateMachine
 
     private bool IsCompiledWithType => _innerParentType is not null;
 
+    /// <summary>
+    /// Transitions the machine to the registered state of type <typeparamref name="T"/>.
+    /// The transition is silently ignored if the target state is not registered or is blocked by a transition rule.
+    /// Exit callbacks of the previous state and entry callbacks of the new state run as part of the transition.
+    /// </summary>
+    /// <typeparam name="T">The state type to switch to. Must have been registered on this machine.</typeparam>
     public void SetCurrentState<T>() => SetCurrentStateByType(typeof(T));
 
     internal void SetCurrentStateByType(Type stateType)
@@ -35,6 +46,13 @@ public class StateMachine : IStateMachine
         _transitionExecutor.Execute(transition, this, () => _current = target);
     }
 
+    /// <summary>
+    /// Returns the current state instance cast to <typeparamref name="T"/>.
+    /// The instance is created lazily on first access and cached for the lifetime of the machine.
+    /// </summary>
+    /// <typeparam name="T">The expected type of the current state.</typeparam>
+    /// <returns>The current state instance.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if no state is set, or the current state is not assignable to <typeparamref name="T"/>.</exception>
     public T GetCurrentState<T>() where T : class
     {
         if (_current?.GetOrCreateInstance() is T state)
@@ -44,6 +62,12 @@ public class StateMachine : IStateMachine
         throw new InvalidOperationException();
     }
 
+    /// <summary>
+    /// Attempts to get the current state instance as <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The expected type of the current state.</typeparam>
+    /// <param name="result">When this method returns <c>true</c>, contains the current state instance; otherwise <c>null</c>.</param>
+    /// <returns><c>true</c> if a current state is set and is assignable to <typeparamref name="T"/>; otherwise <c>false</c>.</returns>
     public bool TryGetCurrentState<T>(out T? result) where T : class
     {
         if (_current?.GetOrCreateInstance() is T state)
@@ -56,6 +80,9 @@ public class StateMachine : IStateMachine
         return false;
     }
 
+    /// <summary>
+    /// Returns the current state instance as <see cref="object"/>, or <c>null</c> if no state is currently set.
+    /// </summary>
     public object? GetCurrentState() => _current?.GetOrCreateInstance();
 
     internal void RegisterInnerState<TState>() where TState : class, new()
