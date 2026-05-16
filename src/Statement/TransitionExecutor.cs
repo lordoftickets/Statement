@@ -14,6 +14,11 @@ internal class TransitionExecutor
         }
 
         commit();
+        machine.InvokeTransitionCallbacks(new TransitionInformation(
+            transition.FromInstance,
+            transition.ToInstance,
+            transition.From?.Type,
+            transition.To.Type));
 
         (transition.ToInstance as IStatement)?.OnEntry();
         transition.To.OnEntry?.Invoke(machine);

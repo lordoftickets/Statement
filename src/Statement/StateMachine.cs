@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Statement.Failures;
 using Statement.Rules;
 
@@ -17,6 +18,7 @@ public class StateMachine : IStateMachine
     private StateNode? _current;
     private readonly RuleMaster _ruleMaster = new();
     private readonly TransitionExecutor _transitionExecutor = new();
+    private readonly List<Action<TransitionInformation>> _transitionCallbacks = [];
     
     internal StateMachine() { }
     internal TransitionFailurePolicy FailurePolicy { get; set; } = TransitionFailurePolicy.Silent;
@@ -86,6 +88,30 @@ public class StateMachine : IStateMachine
     /// Returns the current state instance as <see cref="object"/>, or <c>null</c> if no state is currently set.
     /// </summary>
     public object? GetCurrentState() => _current?.GetOrCreateInstance();
+
+    internal void AddTransitionCallbacks(params Action<TransitionInformation>[] callbacks)
+    {
+        foreach (var callback in callbacks)
+        {
+            _transitionCallbacks.Add(callback);
+        }
+    }
+
+    internal void InvokeTransitionCallbacks(TransitionInformation transitionInformation)
+    {
+        foreach (var transitionCallback in _transitionCallbacks)
+        {
+            try
+            {
+                transitionCallback(transitionInformation);
+            }
+            catch (Exception e)
+            {
+                //general catch-all for transition callbacks to prevent them from crashing the machine
+                Debug.WriteLine($"Exception in transition callback: {e}");
+            }
+        }
+    }
 
     internal void RegisterInnerState<TState>() where TState : class, new()
     {

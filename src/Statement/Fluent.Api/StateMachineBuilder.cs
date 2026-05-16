@@ -76,6 +76,17 @@ public sealed class StateMachineBuilder<TBase> where TBase : class
         => AddState(instance, _ => { });
 
     /// <summary>
+    /// Registers a callback that will be invoked whenever the machine transitions to a new state.
+    /// The callback gets invoked before the explicit state callbacks for the new state are invoked.
+    /// </summary>
+    /// <param name="callback">the method to call</param>
+    public StateMachineBuilder<TBase> AddOnStateChangedCallback(Action<TransitionInformation> callback)
+    {
+        _machine.AddTransitionCallbacks(callback);
+        return this;
+    }
+
+    /// <summary>
     /// Registers a pre-instantiated state object and invokes <paramref name="configure"/> to attach callbacks and rules to it.
     /// </summary>
     /// <param name="instance">The state instance to register.</param>

@@ -164,4 +164,67 @@ public class StateMachineBuilderTests
 
         Assert.That(machine.GetCurrentState(), Is.TypeOf<SimpleUnitTestState>());
     }
+
+    [Test]
+    public void GlobalOnTransitionMethod_GetsCalledOnEntry()
+    {
+        var onEntryCalled = false;
+        
+        var machine = StateMachineBuilder.New()
+            .AddOnStateChangedCallback(_ =>  onEntryCalled = true)
+            .AddState<SimpleUnitTestState>()
+            .AddState<AdvancedUnitTestState>()
+            .Build();
+        
+        machine.SetCurrentState<SimpleUnitTestState>();
+
+        Assert.That(onEntryCalled, Is.True);
+    }
+
+    [Test]
+    public void GlobalOnTransitionMethod_GetsCalledMultipleTimes()
+    {
+        var callCount = 0;
+        
+        var machine = StateMachineBuilder.New()
+            .AddOnStateChangedCallback(_ => callCount++)
+            .AddState<SimpleUnitTestState>()
+            .AddState<AdvancedUnitTestState>()
+            .Build();
+        
+        machine.SetCurrentState<SimpleUnitTestState>();
+        machine.SetCurrentState<AdvancedUnitTestState>();
+        
+        Assert.That(callCount, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void GlobalTransitionMethod_CalledBefore_StateCallback()
+    {
+        DateTime globalTransitionTimeStamp = default;
+        DateTime stateTransitionTimeStamp = default;
+        
+        var machine = StateMachineBuilder.New()
+            .AddOnStateChangedCallback(_ => globalTransitionTimeStamp = DateTime.Now)
+            .AddState<SimpleUnitTestState>(state => state.OnEntry(() => stateTransitionTimeStamp = DateTime.Now))
+            .AddState<AdvancedUnitTestState>()
+            .Build();
+        
+        machine.SetCurrentState<SimpleUnitTestState>();
+
+        
+        Assert.That(globalTransitionTimeStamp < stateTransitionTimeStamp, Is.True);
+    }
+
+    [Test]
+    public void GlobalTransitionMethod_TransitionInfo_ContainsCorrectState()
+    {
+        var machine = StateMachineBuilder.New()
+            .AddOnStateChangedCallback(info => Assert.That(info.To, Is.TypeOf<SimpleUnitTestState>()))
+            .AddState<SimpleUnitTestState>()
+            .AddState<AdvancedUnitTestState>()
+            .Build();
+        
+        machine.SetCurrentState<SimpleUnitTestState>();
+    }
 }
