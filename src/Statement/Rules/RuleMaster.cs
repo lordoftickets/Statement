@@ -10,23 +10,23 @@ internal class RuleMaster
     /// <summary>
     /// evaluate if the transition is allowed
     /// </summary>
-    /// <param name="currentStateBundle">the current active state</param>
-    /// <param name="targetStateBundle">the requested target state</param>
+    /// <param name="current">the current active state node</param>
+    /// <param name="target">the requested target state node</param>
     /// <returns>return true if transition is legal</returns>
-    internal bool IsAllowed(RegisteredStateBundle? currentStateBundle, RegisteredStateBundle? targetStateBundle)
+    internal bool IsAllowed(StateNode? current, StateNode? target)
     {
-        if (currentStateBundle is null || targetStateBundle is null)
+        if (current is null || target is null)
         {
             return true;
         }
-        
-        var rule = currentStateBundle.TransitionRule;
+
+        var rule = current.TransitionRule;
         if (rule is null)
         {
             return true;
         }
 
-        if (!IsAllowedByCurrentState(rule, targetStateBundle.RegisteredState))
+        if (!IsAllowedByCurrentState(rule, target.Type))
         {
             return false;
         }
@@ -35,7 +35,7 @@ internal class RuleMaster
          * later we can implement more rules here
          * like an inbound check
          */
-        
+
         return true;
     }
 

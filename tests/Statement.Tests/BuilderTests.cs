@@ -91,7 +91,7 @@ public class BuilderTests
     private void SimpleHappyPathCallbackOnExit(StateMachine machine)
     {
         var currentState = machine.GetCurrentState<IUnitTestState>();
-        if (currentState is AdvancedUnitTestState)
+        if (currentState is SimpleUnitTestState)
         {
             _wasCalledOnExit = true;
         }

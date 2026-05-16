@@ -1,67 +1,48 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using Statement.Rules;
-using Statement.State;
 
 namespace Statement;
 
 public class StateMachine : IStateMachine
 {
     private Type? _innerParentType;
-    private readonly HashSet<RegisteredStateBundle> _registeredStates = [];
-    private object? _currenState;
-    private readonly List<object> _states = [];
-    
+    private readonly Dictionary<Type, StateNode> _nodes = new();
+    private StateNode? _current;
+
     private readonly RuleMaster _ruleMaster = new();
+    private readonly TransitionExecutor _transitionExecutor = new();
 
     private bool IsCompiledWithType => _innerParentType is not null;
 
     public void SetCurrentState<T>()
     {
-        if (!CheckTransitionRule<T>(_currenState))
+        if (!_nodes.TryGetValue(typeof(T), out var target))
         {
-            //forbidden transition
             return;
         }
-        
-        var state = _states.FirstOrDefault(s => s is T);
-        if (state is not null)
-        {
-            var previousState = _currenState;
-            _currenState = state;
 
-            InvokeOnEntry(state, previousState);
+        if (!_ruleMaster.IsAllowed(_current, target))
+        {
             return;
         }
-        else
-        {
-            var bundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == typeof(T));
-            if (bundle is null)
-            {
-                return;
-            }
 
-            var instance = Activator.CreateInstance(bundle.RegisteredState);
-            _states.Add(instance);
-            var previousState = _currenState;
-            _currenState = instance;
-            InvokeOnEntry(instance, previousState);
-        }
+        var transition = new Transition(_current, target);
+        _transitionExecutor.Execute(transition, this, () => _current = target);
     }
 
     public T GetCurrentState<T>() where T : class
     {
-        if (_currenState is T state)
+        if (_current?.GetOrCreateInstance() is T state)
         {
             return state;
         }
         throw new InvalidOperationException();
     }
-    
+
     public T? TryGetCurrentState<T>(out bool result) where T : class
     {
-        if (_currenState is T state)
+        if (_current?.GetOrCreateInstance() is T state)
         {
             result = true;
             return state;
@@ -71,44 +52,49 @@ public class StateMachine : IStateMachine
         return null;
     }
 
-    public object? GetCurrentState() => _currenState;
+    public object? GetCurrentState() => _current?.GetOrCreateInstance();
 
     internal void RegisterInnerState<TState>() where TState : class, new()
-        => _registeredStates.Add(new RegisteredStateBundle(typeof(TState)));
+    {
+        if (_nodes.ContainsKey(typeof(TState)))
+        {
+            throw new InvalidOperationException($"State {typeof(TState)} is already registered.");
+        }
+        _nodes.Add(typeof(TState), new StateNode(typeof(TState)));
+    }
 
     internal void AddOnEntry(Type stateType, Action<StateMachine> callback)
     {
-        var bundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == stateType);
-        bundle?.OnEntryCallback = callback;
+        if (_nodes.TryGetValue(stateType, out var node))
+        {
+            node.OnEntry = callback;
+        }
     }
-    
+
     internal void AddOnExit(Type stateType, Action<StateMachine> callback)
     {
-        var bundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == stateType);
-        bundle?.OnExitCallback = callback;
+        if (_nodes.TryGetValue(stateType, out var node))
+        {
+            node.OnExit = callback;
+        }
     }
-    
-    internal void AddExitRule(Type stateType, Type type)
+
+    internal void AddExitRule(Type stateType, Type forbiddenTarget)
     {
-        var bundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == stateType);
-        if (bundle is null)
+        if (!_nodes.TryGetValue(stateType, out var node))
         {
             return;
         }
-        if (bundle.TransitionRule is null)
-        {
-            bundle.TransitionRule = new TransitionRule();
-        }
 
-        bundle.TransitionRule.ForbiddenNextStates.Add(type);
+        node.TransitionRule ??= new TransitionRule();
+        node.TransitionRule.ForbiddenNextStates.Add(forbiddenTarget);
     }
 
     internal void Compile()
     {
-        foreach (var registeredStateBundle in _registeredStates)
+        foreach (var node in _nodes.Values)
         {
-            var instance = Activator.CreateInstance(registeredStateBundle.RegisteredState);
-            _states.Add(instance);
+            node.PreInstantiate();
         }
     }
 
@@ -118,53 +104,16 @@ public class StateMachine : IStateMachine
         {
             return;
         }
-        
-        foreach (var registeredStateBundle in _registeredStates)
+
+        foreach (var node in _nodes.Values)
         {
-            if(!typeof(T).IsAssignableFrom(registeredStateBundle.RegisteredState))
+            if (!typeof(T).IsAssignableFrom(node.Type))
             {
                 throw new InvalidOperationException();
             }
 
-            var instance = Activator.CreateInstance(registeredStateBundle.RegisteredState);
-            _states.Add(instance);
+            node.PreInstantiate();
         }
         _innerParentType = typeof(T);
-    }
-    
-
-    private void InvokeOnEntry(object state, object? previousState)
-    {
-        if (state is IStatement statement)
-        {
-            statement.OnEntry();
-        }
-        
-        var callback = _registeredStates.FirstOrDefault(s => s.RegisteredState == state.GetType())?.OnEntryCallback;
-        callback?.Invoke(this);
-
-        if (previousState is not null)
-        {
-            InvokeOnExit(previousState);
-        }
-    }
-    
-    private void InvokeOnExit(object state)
-    {
-        if (state is IStatement statement)
-        {
-            statement.OnExit();
-        }
-        
-        var callback = _registeredStates.FirstOrDefault(s => s.RegisteredState == state.GetType())?.OnExitCallback;
-        callback?.Invoke(this);
-    }
-
-    private bool CheckTransitionRule<T>(object? state)
-    {
-        var targetBundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == typeof(T));
-        var currentBundle = _registeredStates.FirstOrDefault(s => s.RegisteredState == state?.GetType());
-        
-        return _ruleMaster.IsAllowed(currentBundle, targetBundle);
     }
 }
