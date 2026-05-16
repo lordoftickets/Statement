@@ -2,6 +2,11 @@ using System;
 
 namespace Statement.Fluent.Api;
 
+/// <summary>
+/// Fluent builder for configuring a single registered state: its entry/exit callbacks and its transition rules.
+/// Obtained via the <c>configure</c> callback parameter on <see cref="StateMachineBuilder{TBase}.AddState{TState}(Action{StateBuilder{TState}})"/>.
+/// </summary>
+/// <typeparam name="TState">The state type being configured.</typeparam>
 public sealed class StateBuilder<TState> where TState : class
 {
     private readonly StateMachine _machine;
@@ -11,6 +16,11 @@ public sealed class StateBuilder<TState> where TState : class
         _machine = machine;
     }
 
+    /// <summary>
+    /// Registers a callback to run when the machine transitions into <typeparamref name="TState"/>.
+    /// The callback receives the state instance and the owning machine.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
     public StateBuilder<TState> OnEntry(Action<TState, IStateMachine> callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
@@ -18,6 +28,10 @@ public sealed class StateBuilder<TState> where TState : class
         return this;
     }
 
+    /// <summary>
+    /// Registers a parameterless callback to run when the machine transitions into <typeparamref name="TState"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
     public StateBuilder<TState> OnEntry(Action callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
@@ -25,6 +39,11 @@ public sealed class StateBuilder<TState> where TState : class
         return this;
     }
 
+    /// <summary>
+    /// Registers a callback to run when the machine transitions out of <typeparamref name="TState"/>.
+    /// The callback receives the state instance and the owning machine.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
     public StateBuilder<TState> OnExit(Action<TState, IStateMachine> callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
@@ -32,6 +51,10 @@ public sealed class StateBuilder<TState> where TState : class
         return this;
     }
 
+    /// <summary>
+    /// Registers a parameterless callback to run when the machine transitions out of <typeparamref name="TState"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
     public StateBuilder<TState> OnExit(Action callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
@@ -39,6 +62,11 @@ public sealed class StateBuilder<TState> where TState : class
         return this;
     }
 
+    /// <summary>
+    /// Adds a rule forbidding direct transitions from <typeparamref name="TState"/> to <typeparamref name="TForbidden"/>.
+    /// Attempts to switch to the forbidden state while this state is active are silently ignored.
+    /// </summary>
+    /// <typeparam name="TForbidden">The state type that may not be transitioned to from this state.</typeparam>
     public StateBuilder<TState> CannotTransitionTo<TForbidden>()
     {
         _machine.AddExitRule(typeof(TState), typeof(TForbidden));
