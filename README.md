@@ -16,6 +16,7 @@ In Statement, **each state is its own class**. Transitions are expressed by swit
 - Register states by type (auto-instantiated) or by pre-built instance (for states with constructor arguments).
 - Built-in `IStatement` interface for states that prefer to own their own entry/exit logic.
 - Global transition callbacks via `AddOnStateChangedCallback` for cross-cutting concerns like logging.
+- Mandatory initial state — `StartIn<TState>()` must be configured before `Build()`, otherwise a `MachineSetupException` is thrown. This guarantees the machine is never observed in a null state.
 
 ## Quick start
 
@@ -59,6 +60,7 @@ var machine = StateMachineBuilder.New()
         .CannotTransitionTo<Faulted>())
     .AddState<Idle>()
     .AddState<Faulted>()
+    .StartIn<Running>()
     .Build();
 ```
 
@@ -76,6 +78,7 @@ var machine = StateMachineBuilder.New()
     .OnTransitionFailure(TransitionFailurePolicy.Throw)
     .AddState<Running>(s => s.CannotTransitionTo<Idle>())
     .AddState<Idle>()
+    .StartIn<Running>()
     .Build();
 
 // Or run a custom callback
@@ -84,6 +87,7 @@ var machine2 = StateMachineBuilder.New()
         Console.WriteLine($"blocked: {info.From?.Name} -> {info.To.Name}")))
     .AddState<Running>(s => s.CannotTransitionTo<Idle>())
     .AddState<Idle>()
+    .StartIn<Running>()
     .Build();
 ```
 
@@ -99,6 +103,7 @@ var machine = StateMachineBuilder.New()
         Console.WriteLine($"{info.FromType?.Name} -> {info.ToType?.Name}"))
     .AddState<Idle>()
     .AddState<Running>()
+    .StartIn<Idle>()
     .Build();
 ```
 
@@ -125,8 +130,30 @@ var configured = new WithConfig("hello");
 
 var machine = StateMachineBuilder.New()
     .AddState<WithConfig>(configured)
+    .StartIn<WithConfig>()
     .Build();
 ```
+
+### Initial state is required
+
+Every machine must declare its initial state at build time via `StartIn<TState>()`. Calling `Build()` or `BuildTyped()` without it throws `MachineSetupException`:
+
+```csharp
+using Statement.Failures;
+
+try
+{
+    var machine = StateMachineBuilder.New()
+        .AddState<Idle>()
+        .Build();   // throws: missing StartIn<T>()
+}
+catch (MachineSetupException ex)
+{
+    Console.WriteLine(ex.Message);
+}
+```
+
+This makes the "no current state" case impossible at runtime — `GetCurrentState()` will never return `null` on a freshly built machine, and the configured `OnEntry` of the initial state runs as part of `Build()`.
 
 ## Examples
 
