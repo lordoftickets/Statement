@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Statement.Failures;
 using Statement.Rules;
+using Statement.Triggers;
 
 namespace Statement;
 
@@ -19,9 +20,10 @@ public class StateMachine : IStateMachine
     private readonly RuleMaster _ruleMaster = new();
     private readonly TransitionExecutor _transitionExecutor = new();
     private readonly List<Action<TransitionInformation>> _transitionCallbacks = [];
-    
+
     internal StateMachine() { }
     internal TransitionFailurePolicy FailurePolicy { get; set; } = TransitionFailurePolicy.Silent;
+    internal TriggerFailurePolicy TriggerFailurePolicy { get; set; } = TriggerFailurePolicy.Silent;
 
     private bool IsCompiledWithType => _innerParentType is not null;
 
@@ -47,6 +49,54 @@ public class StateMachine : IStateMachine
         }
 
         var transition = new Transition(_current, target);
+        _transitionExecutor.Execute(transition, this, () => _current = target);
+    }
+
+    /// <summary>
+    /// Fires a trigger on the machine. Looks up the trigger on the current state's trigger table and,
+    /// if a handler is registered (and its guard passes), executes the configured transition.
+    /// </summary>
+    /// <param name="trigger">The trigger value. May be any non-null object — marker type instance, enum value, string, etc.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="trigger"/> is <c>null</c>.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if the machine has no current state (should not happen on a built machine).</exception>
+    public void Fire(object trigger)
+    {
+        if (trigger is null) throw new ArgumentNullException(nameof(trigger));
+        if (_current is null) throw new InvalidOperationException("Machine has no current state.");
+
+        var key = TriggerKey.Of(trigger);
+        if (!_current.Triggers.TryGetValue(key, out var handler))
+        {
+            TriggerFailurePolicy.Handle(new TriggerFailureInfo(_current.Type, trigger, TriggerFailureReason.NoHandler));
+            return;
+        }
+
+        if (handler.Guard is { } g && !g())
+        {
+            TriggerFailurePolicy.Handle(new TriggerFailureInfo(_current.Type, trigger, TriggerFailureReason.GuardFailed));
+            return;
+        }
+
+        handler.OnFire?.Invoke(trigger);
+
+        if (handler.Target is null)
+        {
+            // Ignore()
+            return; 
+        }
+
+        if (!_nodes.TryGetValue(handler.Target, out var target))
+        {
+            throw new InvalidOperationException($"Trigger target state {handler.Target} is not registered.");
+        }
+
+        if (!_ruleMaster.IsAllowed(_current, target))
+        {
+            FailurePolicy.Handle(new TransitionFailureInfo(_current.Type, handler.Target));
+            return;
+        }
+
+        var transition = new Transition(_current, target, trigger);
         _transitionExecutor.Execute(transition, this, () => _current = target);
     }
 
@@ -158,6 +208,35 @@ public class StateMachine : IStateMachine
         node.TransitionRule ??= new TransitionRule();
         node.TransitionRule.ForbiddenNextStates.Add(forbiddenTarget);
     }
+
+    internal void AddTriggerHandler(Type stateType, object triggerKey, TriggerHandler handler)
+    {
+        if (!_nodes.TryGetValue(stateType, out var node))
+        {
+            throw new InvalidOperationException($"State {stateType} is not registered.");
+        }
+
+        if (node.Triggers.ContainsKey(triggerKey))
+        {
+            throw new InvalidOperationException(
+                $"State {stateType} already has a handler for trigger '{triggerKey}'.");
+        }
+
+        node.Triggers.Add(triggerKey, handler);
+    }
+
+    internal IEnumerable<Type> GetTriggerTargetTypes()
+    {
+        foreach (var node in _nodes.Values)
+        {
+            foreach (var handler in node.Triggers.Values)
+            {
+                if (handler.Target is not null) yield return handler.Target;
+            }
+        }
+    }
+
+    internal bool HasState(Type stateType) => _nodes.ContainsKey(stateType);
 
     internal void Compile()
     {

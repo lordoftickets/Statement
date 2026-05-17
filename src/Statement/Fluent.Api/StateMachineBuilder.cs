@@ -118,6 +118,19 @@ public sealed class StateMachineBuilder<TBase> where TBase : class
     }
 
     /// <summary>
+    /// Sets the policy used when <c>Fire(trigger)</c> finds no handler for the trigger on the current state,
+    /// or when the matching handler's guard returns <c>false</c>.
+    /// Defaults to <see cref="TriggerFailurePolicy.Silent"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="policy"/> is <c>null</c>.</exception>
+    public StateMachineBuilder<TBase> OnTriggerFailure(TriggerFailurePolicy policy)
+    {
+        if (policy is null) throw new ArgumentNullException(nameof(policy));
+        _machine.TriggerFailurePolicy = policy;
+        return this;
+    }
+
+    /// <summary>
     /// Sets the state the machine will be in after <see cref="Build"/> completes.
     /// The entry callback for <typeparamref name="TState"/> runs as part of building.
     /// </summary>
@@ -141,6 +154,15 @@ public sealed class StateMachineBuilder<TBase> where TBase : class
         else
         {
             _machine.Compile();
+        }
+
+        foreach (var triggerTarget in _machine.GetTriggerTargetTypes())
+        {
+            if (!_machine.HasState(triggerTarget))
+            {
+                throw new MachineSetupException(
+                    $"Trigger target state {triggerTarget} is not registered on this machine.");
+            }
         }
 
         if (_initialState is not null)

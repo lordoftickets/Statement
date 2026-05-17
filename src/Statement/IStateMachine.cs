@@ -6,4 +6,5 @@ public interface IStateMachine
     T GetCurrentState<T>() where T : class;
     object? GetCurrentState();
     bool TryGetCurrentState<T>(out T? result) where T : class;
+    void Fire(object trigger);
 }

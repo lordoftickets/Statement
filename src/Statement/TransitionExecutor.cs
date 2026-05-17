@@ -18,7 +18,8 @@ internal class TransitionExecutor
             transition.FromInstance,
             transition.ToInstance,
             transition.From?.Type,
-            transition.To.Type));
+            transition.To.Type,
+            transition.Trigger));
 
         (transition.ToInstance as IStatement)?.OnEntry();
         transition.To.OnEntry?.Invoke(machine);

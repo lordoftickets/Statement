@@ -63,6 +63,24 @@ public sealed class StateBuilder<TState> where TState : class
     }
 
     /// <summary>
+    /// Begins configuration of a trigger handler keyed by the type <typeparamref name="TTrigger"/>.
+    /// Use <c>Fire(new TTrigger(...))</c> (or any instance of <typeparamref name="TTrigger"/>) to invoke it later.
+    /// </summary>
+    public TriggerBuilder<TState, TTrigger> On<TTrigger>()
+        => new(_machine, typeof(TTrigger));
+
+    /// <summary>
+    /// Begins configuration of a trigger handler keyed by a specific value (typically an enum value or string).
+    /// Use <c>Fire(triggerKey)</c> with the equal value to invoke it later.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="triggerKey"/> is <c>null</c>.</exception>
+    public TriggerBuilder<TState, object> On(object triggerKey)
+    {
+        if (triggerKey is null) throw new ArgumentNullException(nameof(triggerKey));
+        return new TriggerBuilder<TState, object>(_machine, triggerKey);
+    }
+
+    /// <summary>
     /// Adds a rule forbidding direct transitions from <typeparamref name="TState"/> to <typeparamref name="TForbidden"/>.
     /// Attempts to switch to the forbidden state while this state is active are silently ignored.
     /// </summary>

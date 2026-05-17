@@ -17,6 +17,7 @@ In Statement, **each state is its own class**. Transitions are expressed by swit
 - Built-in `IStatement` interface for states that prefer to own their own entry/exit logic.
 - Global transition callbacks via `AddOnStateChangedCallback` for cross-cutting concerns like logging.
 - Mandatory initial state — `StartIn<TState>()` must be configured before `Build()`, otherwise a `MachineSetupException` is thrown. This guarantees the machine is never observed in a null state.
+- Trigger-based transitions — declare `On<TTrigger>().GoTo<TTarget>()` per state and drive the machine via `machine.Fire(trigger)`. Supports marker types, enums, strings, or any value. Guards (`If`), payload-receiving side-effects (`Do`), and internal transitions (`Ignore`) are first-class.
 
 ## Quick start
 
@@ -132,6 +133,60 @@ var machine = StateMachineBuilder.New()
     .AddState<WithConfig>(configured)
     .StartIn<WithConfig>()
     .Build();
+```
+
+### Trigger-driven transitions
+
+Instead of (or alongside) calling `SetCurrentState<T>()`, you can declare named triggers per state and `Fire()` them. The current state owns the routing, so the same trigger can mean different things in different states.
+
+```csharp
+public sealed record Open;
+public sealed record Close;
+public sealed record Lock(string KeyId);
+
+public class Closed { }
+public class Opened { }
+public class Locked { }
+
+var machine = StateMachineBuilder.New()
+    .AddState<Closed>(s => s
+        .On<Open>().GoTo<Opened>()
+        .On<Lock>().If(() => hasKey).Do(t => Audit(t.KeyId)).GoTo<Locked>())
+    .AddState<Opened>(s => s
+        .On<Close>().GoTo<Closed>())
+    .AddState<Locked>(s => s
+        .On<Open>().Ignore())          // valid here, but does nothing
+    .StartIn<Closed>()
+    .Build();
+
+machine.Fire(new Open());              // Closed -> Opened
+machine.Fire(new Close());             // Opened -> Closed
+machine.Fire(new Lock("k1"));          // Closed -> Locked (guard checks `hasKey`)
+machine.Fire(new Open());              // ignored — no callbacks fire
+```
+
+The `TriggerBuilder` fragment supports:
+
+| Call | Effect |
+|---|---|
+| `.GoTo<TTarget>()` | Transition to the target state. |
+| `.Ignore()` | Internal transition: consume the trigger without firing `OnExit` / `OnEntry`. |
+| `.If(Func<bool>)` | Guard the transition. Failed guards route through `TriggerFailurePolicy`. |
+| `.Do(Action<TTrigger>)` | Side-effect that runs after the guard passes, before `OnExit`. Receives the trigger value (payload). |
+
+Triggers can be any non-null object: marker-type instances (`new Open()`), enum values (`On(DoorTrigger.Open)`), strings (`On("open")`), or even a `Type`. Use whatever fits your domain.
+
+When `Fire(...)` finds no handler on the current state or a guard returns `false`, the configured `TriggerFailurePolicy` decides what happens — `Silent` (default), `Throw` (raises `TriggerFailedException`), or `Invoke(callback)` to receive a `TriggerFailureInfo`:
+
+```csharp
+var machine = StateMachineBuilder.New()
+    .OnTriggerFailure(TriggerFailurePolicy.Throw)
+    .AddState<Closed>(s => s.On<Open>().GoTo<Opened>())
+    .AddState<Opened>()
+    .StartIn<Closed>()
+    .Build();
+
+machine.Fire(new Close());   // throws TriggerFailedException (NoHandler)
 ```
 
 ### Initial state is required
