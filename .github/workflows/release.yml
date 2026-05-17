@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # MinVer needs full history + tags
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+          dotnet-quality: 'preview'
+
+      - name: Restore
+        run: dotnet restore Statement.slnx
+
+      - name: Build
+        run: dotnet build Statement.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Statement.slnx --configuration Release --no-build --verbosity normal
+
+      - name: Pack
+        run: dotnet pack src/Statement/Statement.csproj --configuration Release --no-build --output ./artifacts
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ./artifacts/*
+
+      - name: Push to NuGet.org
+        run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: ./artifacts/*

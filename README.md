@@ -1,6 +1,8 @@
 # Statement
 
 [![CI](https://github.com/Jhanmn/Statement/actions/workflows/ci.yml/badge.svg)](https://github.com/Jhanmn/Statement/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Jhanmn.Statement?logo=nuget)](https://www.nuget.org/packages/Jhanmn.Statement)
+[![NuGet Pre-release](https://img.shields.io/nuget/vpre/Jhanmn.Statement?logo=nuget&label=nuget%20%28pre%29)](https://www.nuget.org/packages/Jhanmn.Statement)
 [![License](https://img.shields.io/github/license/Jhanmn/Statement)](License)
 [![.NET Standard 2.0](https://img.shields.io/badge/target-.NET%20Standard%202.0-512BD4)](https://learn.microsoft.com/dotnet/standard/net-standard)
 
