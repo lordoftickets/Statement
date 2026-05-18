@@ -28,4 +28,10 @@ public class StateMachine<T> : StateMachine where T : class
     /// </summary>
     /// <typeparam name="TState">The state type to switch to. Must derive from or implement <typeparamref name="T"/>.</typeparam>
     public new void SetCurrentState<TState>() where TState : T => SetCurrentStateByType(typeof(TState));
+
+    /// <summary>
+    /// Transitions to <typeparamref name="TState"/> and carries a typed <paramref name="payload"/> through to
+    /// the target state's <c>OnEntryWith</c> callback.
+    /// </summary>
+    public new void SetCurrentState<TState>(object? payload) where TState : T => SetCurrentStateByType(typeof(TState), payload);
 }

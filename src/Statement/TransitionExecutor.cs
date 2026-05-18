@@ -19,9 +19,10 @@ internal class TransitionExecutor
             transition.ToInstance,
             transition.From?.Type,
             transition.To.Type,
-            transition.Trigger));
+            transition.Trigger,
+            transition.Payload));
 
         (transition.ToInstance as IStatement)?.OnEntry();
-        transition.To.OnEntry?.Invoke(machine);
+        transition.To.OnEntry?.Invoke(machine, transition.Payload);
     }
 }

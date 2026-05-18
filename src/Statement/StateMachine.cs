@@ -33,9 +33,16 @@ public class StateMachine : IStateMachine
     /// Exit callbacks of the previous state and entry callbacks of the new state run as part of the transition.
     /// </summary>
     /// <typeparam name="T">The state type to switch to. Must have been registered on this machine.</typeparam>
-    public void SetCurrentState<T>() => SetCurrentStateByType(typeof(T));
+    public void SetCurrentState<T>() => SetCurrentStateByType(typeof(T), null);
 
-    internal void SetCurrentStateByType(Type stateType)
+    /// <summary>
+    /// Transitions to <typeparamref name="T"/> and carries a typed <paramref name="payload"/> through to
+    /// the target state's <see cref="Statement.Fluent.Api.StateBuilder{TState}.OnEntryWith{TPayload}"/> callback
+    /// and to any global transition callbacks via <see cref="TransitionInformation.Payload"/>.
+    /// </summary>
+    public void SetCurrentState<T>(object? payload) => SetCurrentStateByType(typeof(T), payload);
+
+    internal void SetCurrentStateByType(Type stateType, object? payload = null)
     {
         if (!_nodes.TryGetValue(stateType, out var target))
         {
@@ -48,7 +55,7 @@ public class StateMachine : IStateMachine
             return;
         }
 
-        var transition = new Transition(_current, target);
+        var transition = new Transition(_current, target, payload: payload);
         _transitionExecutor.Execute(transition, this, () => _current = target);
     }
 
@@ -59,7 +66,14 @@ public class StateMachine : IStateMachine
     /// <param name="trigger">The trigger value. May be any non-null object — marker type instance, enum value, string, etc.</param>
     /// <exception cref="ArgumentNullException"><paramref name="trigger"/> is <c>null</c>.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the machine has no current state (should not happen on a built machine).</exception>
-    public void Fire(object trigger)
+    public void Fire(object trigger) => Fire(trigger, null);
+
+    /// <summary>
+    /// Fires a trigger and carries a typed <paramref name="payload"/> through to the target state's
+    /// <see cref="Statement.Fluent.Api.StateBuilder{TState}.OnEntryWith{TPayload}"/> callback and to any
+    /// global transition callbacks via <see cref="TransitionInformation.Payload"/>.
+    /// </summary>
+    public void Fire(object trigger, object? payload)
     {
         if (trigger is null) throw new ArgumentNullException(nameof(trigger));
         if (_current is null) throw new InvalidOperationException("Machine has no current state.");
@@ -96,7 +110,7 @@ public class StateMachine : IStateMachine
             return;
         }
 
-        var transition = new Transition(_current, target, trigger);
+        var transition = new Transition(_current, target, trigger, payload);
         _transitionExecutor.Execute(transition, this, () => _current = target);
     }
 
@@ -182,7 +196,7 @@ public class StateMachine : IStateMachine
         _nodes.Add(typeof(TState), new StateNode(typeof(TState), instance));
     }
 
-    internal void AddOnEntry(Type stateType, Action<StateMachine> callback)
+    internal void AddOnEntry(Type stateType, Action<StateMachine, object?> callback)
     {
         if (_nodes.TryGetValue(stateType, out var node))
         {

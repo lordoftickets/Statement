@@ -33,7 +33,7 @@ public class TransitionExecutorTests
     {
         var to = new StateNode(typeof(SimpleStatement));
         var entryCalled = false;
-        to.OnEntry = _ => entryCalled = true;
+        to.OnEntry = (_, _) => entryCalled = true;
 
         Assert.DoesNotThrow(() => _executor.Execute(new Transition(null, to), _machine, () => { }));
         Assert.That(entryCalled, Is.True);
@@ -45,7 +45,7 @@ public class TransitionExecutorTests
     {
         var order = new List<string>();
         var from = new StateNode(typeof(SimpleStatement)) { OnExit = _ => order.Add("from.OnExit") };
-        var to = new StateNode(typeof(SimpleStatement)) { OnEntry = _ => order.Add("to.OnEntry") };
+        var to = new StateNode(typeof(SimpleStatement)) { OnEntry = (_, _) => order.Add("to.OnEntry") };
 
         _executor.Execute(new Transition(from, to), _machine, () => order.Add("commit"));
 

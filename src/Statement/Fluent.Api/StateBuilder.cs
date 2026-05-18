@@ -24,7 +24,7 @@ public sealed class StateBuilder<TState> where TState : class
     public StateBuilder<TState> OnEntry(Action<TState, IStateMachine> callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
-        _machine.AddOnEntry(typeof(TState), m => callback((TState)m.GetCurrentState()!, m));
+        _machine.AddOnEntry(typeof(TState), (m, _) => callback((TState)m.GetCurrentState()!, m));
         return this;
     }
 
@@ -35,7 +35,51 @@ public sealed class StateBuilder<TState> where TState : class
     public StateBuilder<TState> OnEntry(Action callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
-        _machine.AddOnEntry(typeof(TState), _ => callback());
+        _machine.AddOnEntry(typeof(TState), (_, _) => callback());
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a callback to run when the machine transitions into <typeparamref name="TState"/> with a typed payload.
+    /// The callback receives the state instance and the payload passed to
+    /// <see cref="StateMachine.Fire(object, object?)"/> or <see cref="StateMachine.SetCurrentState{T}(object?)"/>.
+    /// </summary>
+    /// <typeparam name="TPayload">Expected payload type. A wrong-type or missing payload throws <see cref="InvalidCastException"/>.</typeparam>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
+    public StateBuilder<TState> OnEntryWith<TPayload>(Action<TState, TPayload> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnEntry(typeof(TState), (m, payload) =>
+        {
+            if (payload is not TPayload typed)
+            {
+                throw new InvalidCastException(
+                    $"State {typeof(TState).Name} expected payload of type {typeof(TPayload).Name} " +
+                    $"but got {(payload?.GetType().Name ?? "null")}.");
+            }
+            callback((TState)m.GetCurrentState()!, typed);
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a payload-only callback to run when the machine transitions into <typeparamref name="TState"/>.
+    /// </summary>
+    /// <typeparam name="TPayload">Expected payload type. A wrong-type or missing payload throws <see cref="InvalidCastException"/>.</typeparam>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
+    public StateBuilder<TState> OnEntryWith<TPayload>(Action<TPayload> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnEntry(typeof(TState), (_, payload) =>
+        {
+            if (payload is not TPayload typed)
+            {
+                throw new InvalidCastException(
+                    $"State {typeof(TState).Name} expected payload of type {typeof(TPayload).Name} " +
+                    $"but got {(payload?.GetType().Name ?? "null")}.");
+            }
+            callback(typed);
+        });
         return this;
     }
 
