@@ -43,27 +43,33 @@ public class TransitionPayloadTests
     }
 
     [Test]
-    public void OnEntryWith_WrongPayloadType_Throws()
+    public void OnEntryWith_WrongPayloadType_SkipsCallback_StillTransitions()
     {
+        var invoked = false;
         var machine = StateMachineBuilder.New()
             .AddState<SimpleUnitTestState>()
-            .AddState<AdvancedUnitTestState>(s => s.OnEntryWith<FileData>((_, _) => { }))
+            .AddState<AdvancedUnitTestState>(s => s.OnEntryWith<FileData>((_, _) => invoked = true))
             .StartIn<SimpleUnitTestState>()
             .Build();
 
-        Assert.Throws<InvalidCastException>(() => machine.SetCurrentState<AdvancedUnitTestState>("not a FileData"));
+        Assert.DoesNotThrow(() => machine.SetCurrentState<AdvancedUnitTestState>("not a FileData"));
+        Assert.That(invoked, Is.False);
+        Assert.That(machine.GetCurrentState(), Is.TypeOf<AdvancedUnitTestState>());
     }
 
     [Test]
-    public void OnEntryWith_NullPayload_Throws()
+    public void OnEntryWith_NullPayload_SkipsCallback_StillTransitions()
     {
+        var invoked = false;
         var machine = StateMachineBuilder.New()
             .AddState<SimpleUnitTestState>()
-            .AddState<AdvancedUnitTestState>(s => s.OnEntryWith<FileData>((_, _) => { }))
+            .AddState<AdvancedUnitTestState>(s => s.OnEntryWith<FileData>((_, _) => invoked = true))
             .StartIn<SimpleUnitTestState>()
             .Build();
 
-        Assert.Throws<InvalidCastException>(() => machine.SetCurrentState<AdvancedUnitTestState>());
+        Assert.DoesNotThrow(() => machine.SetCurrentState<AdvancedUnitTestState>());
+        Assert.That(invoked, Is.False);
+        Assert.That(machine.GetCurrentState(), Is.TypeOf<AdvancedUnitTestState>());
     }
 
     [Test]
