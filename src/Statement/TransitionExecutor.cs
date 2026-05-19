@@ -1,20 +1,35 @@
 using System;
+using System.Threading.Tasks;
 using Statement.State;
 
 namespace Statement;
 
 internal class TransitionExecutor
 {
-    internal void Execute(Transition transition, StateMachine machine, Action commit)
+    internal async Task ExecuteAsync(Transition transition, StateMachine machine, Action commit)
     {
         if (transition.From is not null)
         {
-            (transition.FromInstance as IStatement)?.OnExit();
-            transition.From.OnExit?.Invoke(machine, transition.Payload);
+            //on interface callbacks
+            switch (transition.FromInstance)
+            {
+                case IStatement statement:
+                    statement.OnExit();
+                    break;
+                case IAsyncStatement asyncFrom:
+                    await asyncFrom.OnExitAsync();
+                    break;
+            }
+
+            //provided callbacks through api
+            if (transition.From.OnExit is not null)
+            {
+                await transition.From.OnExit(machine, transition.Payload);
+            }
         }
 
         commit();
-        machine.InvokeTransitionCallbacks(new TransitionInformation(
+        await machine.InvokeTransitionCallbacksAsync(new TransitionInformation(
             transition.FromInstance,
             transition.ToInstance,
             transition.From?.Type,
@@ -22,7 +37,19 @@ internal class TransitionExecutor
             transition.Trigger,
             transition.Payload));
 
-        (transition.ToInstance as IStatement)?.OnEntry();
-        transition.To.OnEntry?.Invoke(machine, transition.Payload);
+        switch (transition.ToInstance)
+        {
+            case IStatement toStatement:
+                toStatement.OnEntry();
+                break;
+            case IAsyncStatement asyncToStatement:
+                await asyncToStatement.OnEntryAsync();
+                break;
+        }
+
+        if (transition.To.OnEntry is not null)
+        {
+            await transition.To.OnEntry(machine, transition.Payload);
+        }
     }
 }

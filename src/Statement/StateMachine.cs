@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Statement.Failures;
 using Statement.Rules;
 using Statement.Triggers;
@@ -19,7 +20,7 @@ public class StateMachine : IStateMachine
     private StateNode? _current;
     private readonly RuleMaster _ruleMaster = new();
     private readonly TransitionExecutor _transitionExecutor = new();
-    private readonly List<Action<TransitionInformation>> _transitionCallbacks = [];
+    private readonly List<Func<TransitionInformation, Task>> _transitionCallbacks = [];
 
     internal StateMachine() { }
     internal TransitionFailurePolicy FailurePolicy { get; set; } = TransitionFailurePolicy.Silent;
@@ -42,7 +43,32 @@ public class StateMachine : IStateMachine
     /// </summary>
     public void SetCurrentState<T>(object? payload) => SetCurrentStateByType(typeof(T), payload);
 
+    /// <summary>
+    /// Asynchronously transitions the machine to the registered state of type <typeparamref name="T"/>.
+    /// </summary>
+    public Task SetCurrentStateAsync<T>() => SetCurrentStateByTypeAsync(typeof(T), null);
+
+    /// <summary>
+    /// Asynchronously transitions to <typeparamref name="T"/> with a typed <paramref name="payload"/>.
+    /// </summary>
+    public Task SetCurrentStateAsync<T>(object? payload) => SetCurrentStateByTypeAsync(typeof(T), payload);
+
     internal void SetCurrentStateByType(Type stateType, object? payload = null)
+    {
+        var task = SetCurrentStateByTypeAsync(stateType, payload);
+        if (task.IsFaulted)
+        {
+            task.GetAwaiter().GetResult();
+        }
+
+        if (task.Status != TaskStatus.RanToCompletion)
+        {
+            throw new InvalidOperationException(
+                "This transition involves async callbacks. Use SetCurrentStateAsync instead.");
+        }
+    }
+
+    internal async Task SetCurrentStateByTypeAsync(Type stateType, object? payload = null)
     {
         if (!_nodes.TryGetValue(stateType, out var target))
         {
@@ -56,7 +82,7 @@ public class StateMachine : IStateMachine
         }
 
         var transition = new Transition(_current, target, payload: payload);
-        _transitionExecutor.Execute(transition, this, () => _current = target);
+        await _transitionExecutor.ExecuteAsync(transition, this, () => _current = target);
     }
 
     /// <summary>
@@ -74,6 +100,29 @@ public class StateMachine : IStateMachine
     /// global transition callbacks via <see cref="TransitionInformation.Payload"/>.
     /// </summary>
     public void Fire(object trigger, object? payload)
+    {
+        var task = FireAsync(trigger, payload);
+        if (task.IsFaulted)
+        {
+            task.GetAwaiter().GetResult();
+        }
+
+        if (task.Status != TaskStatus.RanToCompletion)
+        {
+            throw new InvalidOperationException(
+                "This transition involves async callbacks. Use FireAsync instead.");
+        }
+    }
+
+    /// <summary>
+    /// Asynchronously fires a trigger on the machine.
+    /// </summary>
+    public Task FireAsync(object trigger) => FireAsync(trigger, null);
+
+    /// <summary>
+    /// Asynchronously fires a trigger with a typed <paramref name="payload"/>.
+    /// </summary>
+    public async Task FireAsync(object trigger, object? payload)
     {
         if (trigger is null) throw new ArgumentNullException(nameof(trigger));
         if (_current is null) throw new InvalidOperationException("Machine has no current state.");
@@ -95,8 +144,7 @@ public class StateMachine : IStateMachine
 
         if (handler.Target is null)
         {
-            // Ignore()
-            return; 
+            return;
         }
 
         if (!_nodes.TryGetValue(handler.Target, out var target))
@@ -111,7 +159,7 @@ public class StateMachine : IStateMachine
         }
 
         var transition = new Transition(_current, target, trigger, payload);
-        _transitionExecutor.Execute(transition, this, () => _current = target);
+        await _transitionExecutor.ExecuteAsync(transition, this, () => _current = target);
     }
 
     /// <summary>
@@ -153,7 +201,7 @@ public class StateMachine : IStateMachine
     /// </summary>
     public object? GetCurrentState() => _current?.GetOrCreateInstance();
 
-    internal void AddTransitionCallbacks(params Action<TransitionInformation>[] callbacks)
+    internal void AddTransitionCallbacks(params Func<TransitionInformation, Task>[] callbacks)
     {
         foreach (var callback in callbacks)
         {
@@ -161,13 +209,13 @@ public class StateMachine : IStateMachine
         }
     }
 
-    internal void InvokeTransitionCallbacks(TransitionInformation transitionInformation)
+    internal async Task InvokeTransitionCallbacksAsync(TransitionInformation transitionInformation)
     {
         foreach (var transitionCallback in _transitionCallbacks)
         {
             try
             {
-                transitionCallback(transitionInformation);
+                await transitionCallback(transitionInformation);
             }
             catch (Exception e)
             {
@@ -196,7 +244,7 @@ public class StateMachine : IStateMachine
         _nodes.Add(typeof(TState), new StateNode(typeof(TState), instance));
     }
 
-    internal void AddOnEntry(Type stateType, Action<StateMachine, object?> callback)
+    internal void AddOnEntry(Type stateType, Func<StateMachine, object?, Task> callback)
     {
         if (_nodes.TryGetValue(stateType, out var node))
         {
@@ -204,7 +252,7 @@ public class StateMachine : IStateMachine
         }
     }
 
-    internal void AddOnExit(Type stateType, Action<StateMachine, object?> callback)
+    internal void AddOnExit(Type stateType, Func<StateMachine, object?, Task> callback)
     {
         if (_nodes.TryGetValue(stateType, out var node))
         {

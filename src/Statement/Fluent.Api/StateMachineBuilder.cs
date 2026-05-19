@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Statement.Failures;
 
 namespace Statement.Fluent.Api;
@@ -82,6 +83,16 @@ public sealed class StateMachineBuilder<TBase> where TBase : class
     /// <param name="callback">the method to call</param>
     public StateMachineBuilder<TBase> AddOnStateChangedCallback(Action<TransitionInformation> callback)
     {
+        _machine.AddTransitionCallbacks(info => { callback(info); return Task.CompletedTask; });
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an async callback that will be invoked whenever the machine transitions to a new state.
+    /// </summary>
+    /// <param name="callback">the async method to call</param>
+    public StateMachineBuilder<TBase> AddOnStateChangedCallbackAsync(Func<TransitionInformation, Task> callback)
+    {
         _machine.AddTransitionCallbacks(callback);
         return this;
     }
@@ -147,6 +158,27 @@ public sealed class StateMachineBuilder<TBase> where TBase : class
     /// </summary>
     public StateMachine Build()
     {
+        var task = BuildAsync();
+        if (task.IsFaulted)
+        {
+            task.GetAwaiter().GetResult();
+        }
+
+        if (task.Status != TaskStatus.RanToCompletion)
+        {
+            throw new InvalidOperationException(
+                "This machine has async callbacks on the initial state. Use BuildAsync instead.");
+        }
+
+        return task.GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Asynchronously finalizes the configuration, pre-instantiates registered states as needed, applies the initial state,
+    /// and returns the built <see cref="StateMachine"/>. Use this when the initial state or global callbacks are async.
+    /// </summary>
+    public async Task<StateMachine> BuildAsync()
+    {
         if (_requireBaseType && typeof(TBase) != typeof(object))
         {
             _machine.CompileAgainst<TBase>();
@@ -167,7 +199,7 @@ public sealed class StateMachineBuilder<TBase> where TBase : class
 
         if (_initialState is not null)
         {
-            _machine.SetCurrentStateByType(_initialState);
+            await _machine.SetCurrentStateByTypeAsync(_initialState);
         }
         else
         {
@@ -191,5 +223,20 @@ public sealed class StateMachineBuilder<TBase> where TBase : class
         }
 
         return (StateMachine<TBase>)Build();
+    }
+
+    /// <summary>
+    /// Asynchronously finalizes the configuration and returns a strongly-typed <see cref="StateMachine{TBase}"/>.
+    /// Only valid for builders created via <see cref="StateMachineBuilder.For{TBase}"/>.
+    /// </summary>
+    public async Task<StateMachine<TBase>> BuildTypedAsync()
+    {
+        if (!_requireBaseType || typeof(TBase) == typeof(object))
+        {
+            throw new InvalidOperationException(
+                "BuildTypedAsync requires a builder created via StateMachineBuilder.For<TBase>().");
+        }
+
+        return (StateMachine<TBase>)await BuildAsync();
     }
 }

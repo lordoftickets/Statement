@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Statement.Tests.TestStates;
 using Statement.Tests.TestStates.Statement;
 
@@ -17,37 +18,37 @@ public class TransitionExecutorTests
     }
 
     [Test]
-    public void Execute_InvokesCommit()
+    public async Task Execute_InvokesCommit()
     {
         var from = new StateNode(typeof(SimpleUnitTestState));
         var to = new StateNode(typeof(AdvancedUnitTestState));
         var committed = false;
 
-        _executor.Execute(new Transition(from, to), _machine, () => committed = true);
+        await _executor.ExecuteAsync(new Transition(from, to), _machine, () => committed = true);
 
         Assert.That(committed, Is.True);
     }
 
     [Test]
-    public void Execute_FromNull_DoesNotInvokeExitCallbacks()
+    public async Task Execute_FromNull_DoesNotInvokeExitCallbacks()
     {
         var to = new StateNode(typeof(SimpleStatement));
         var entryCalled = false;
-        to.OnEntry = (_, _) => entryCalled = true;
+        to.OnEntry = (_, _) => { entryCalled = true; return Task.CompletedTask; };
 
-        Assert.DoesNotThrow(() => _executor.Execute(new Transition(null, to), _machine, () => { }));
+        Assert.DoesNotThrowAsync(() => _executor.ExecuteAsync(new Transition(null, to), _machine, () => { }));
         Assert.That(entryCalled, Is.True);
         Assert.That(((SimpleStatement)to.GetOrCreateInstance()).OnEntryCalled, Is.True);
     }
 
     [Test]
-    public void Execute_CallsOrder_ExitThenCommitThenEntry()
+    public async Task Execute_CallsOrder_ExitThenCommitThenEntry()
     {
         var order = new List<string>();
-        var from = new StateNode(typeof(SimpleStatement)) { OnExit = (_, _) => order.Add("from.OnExit") };
-        var to = new StateNode(typeof(SimpleStatement)) { OnEntry = (_, _) => order.Add("to.OnEntry") };
+        var from = new StateNode(typeof(SimpleStatement)) { OnExit = (_, _) => { order.Add("from.OnExit"); return Task.CompletedTask; } };
+        var to = new StateNode(typeof(SimpleStatement)) { OnEntry = (_, _) => { order.Add("to.OnEntry"); return Task.CompletedTask; } };
 
-        _executor.Execute(new Transition(from, to), _machine, () => order.Add("commit"));
+        await _executor.ExecuteAsync(new Transition(from, to), _machine, () => order.Add("commit"));
 
         Assert.That(order, Is.EqualTo(new[]
         {
@@ -58,14 +59,14 @@ public class TransitionExecutorTests
     }
 
     [Test]
-    public void Execute_CallsIStatementHooksOnInstances()
+    public async Task Execute_CallsIStatementHooksOnInstances()
     {
         var from = new StateNode(typeof(SimpleStatement));
         var to = new StateNode(typeof(SimpleStatement));
         var fromInstance = (SimpleStatement)from.GetOrCreateInstance();
         var toInstance = (SimpleStatement)to.GetOrCreateInstance();
 
-        _executor.Execute(new Transition(from, to), _machine, () => { });
+        await _executor.ExecuteAsync(new Transition(from, to), _machine, () => { });
 
         Assert.That(fromInstance.OnExitCalled, Is.True);
         Assert.That(toInstance.OnEntryCalled, Is.True);
@@ -79,19 +80,19 @@ public class TransitionExecutorTests
         var from = new StateNode(typeof(SimpleUnitTestState));
         var to = new StateNode(typeof(AdvancedUnitTestState));
 
-        Assert.DoesNotThrow(() => _executor.Execute(new Transition(from, to), _machine, () => { }));
+        Assert.DoesNotThrowAsync(() => _executor.ExecuteAsync(new Transition(from, to), _machine, () => { }));
     }
 
     [Test]
-    public void Execute_InvokesTransitionCallbackWithFullInformation()
+    public async Task Execute_InvokesTransitionCallbackWithFullInformation()
     {
         var from = new StateNode(typeof(SimpleUnitTestState));
         var to = new StateNode(typeof(AdvancedUnitTestState));
         var trigger = "go";
         TransitionInformation? captured = null;
-        _machine.AddTransitionCallbacks(info => captured = info);
+        _machine.AddTransitionCallbacks(info => { captured = info; return Task.CompletedTask; });
 
-        _executor.Execute(new Transition(from, to, trigger), _machine, () => { });
+        await _executor.ExecuteAsync(new Transition(from, to, trigger), _machine, () => { });
 
         Assert.That(captured, Is.Not.Null);
         Assert.That(captured!.Value.FromType, Is.EqualTo(typeof(SimpleUnitTestState)));
@@ -102,13 +103,13 @@ public class TransitionExecutorTests
     }
 
     [Test]
-    public void Execute_FromNull_CallbackHasNullFrom()
+    public async Task Execute_FromNull_CallbackHasNullFrom()
     {
         var to = new StateNode(typeof(SimpleUnitTestState));
         TransitionInformation? captured = null;
-        _machine.AddTransitionCallbacks(info => captured = info);
+        _machine.AddTransitionCallbacks(info => { captured = info; return Task.CompletedTask; });
 
-        _executor.Execute(new Transition(null, to), _machine, () => { });
+        await _executor.ExecuteAsync(new Transition(null, to), _machine, () => { });
 
         Assert.That(captured, Is.Not.Null);
         Assert.That(captured!.Value.From, Is.Null);
