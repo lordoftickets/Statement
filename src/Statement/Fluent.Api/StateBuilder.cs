@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 namespace Statement.Fluent.Api;
 
@@ -24,7 +25,11 @@ public sealed class StateBuilder<TState> where TState : class
     public StateBuilder<TState> OnEntry(Action<TState, IStateMachine> callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
-        _machine.AddOnEntry(typeof(TState), (m, _) => callback((TState)m.GetCurrentState()!, m));
+        _machine.AddOnEntry(typeof(TState), (m, _) =>
+        {
+            callback((TState)m.GetCurrentState()!, m);
+            return Task.CompletedTask;
+        });
         return this;
     }
 
@@ -35,14 +40,38 @@ public sealed class StateBuilder<TState> where TState : class
     public StateBuilder<TState> OnEntry(Action callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnEntry(typeof(TState), (_, _) =>
+        {
+            callback();
+            return Task.CompletedTask;
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an async callback to run when the machine transitions into <typeparamref name="TState"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
+    public StateBuilder<TState> OnEntryAsync(Func<TState, IStateMachine, Task> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnEntry(typeof(TState), (m, _) => callback((TState)m.GetCurrentState()!, m));
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a parameterless async callback to run when the machine transitions into <typeparamref name="TState"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
+    public StateBuilder<TState> OnEntryAsync(Func<Task> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
         _machine.AddOnEntry(typeof(TState), (_, _) => callback());
         return this;
     }
 
     /// <summary>
     /// Registers a callback to run when the machine transitions into <typeparamref name="TState"/> with a typed payload.
-    /// The callback receives the state instance and the payload passed to
-    /// <see cref="StateMachine.Fire(object, object?)"/> or <see cref="StateMachine.SetCurrentState{T}(object?)"/>.
     /// </summary>
     /// <typeparam name="TPayload">Expected payload type. If the supplied payload is not assignable to <typeparamref name="TPayload"/> the callback is silently skipped; the transition itself still proceeds.</typeparam>
     /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
@@ -55,6 +84,7 @@ public sealed class StateBuilder<TState> where TState : class
             {
                 callback((TState)m.GetCurrentState()!, typed);
             }
+            return Task.CompletedTask;
         });
         return this;
     }
@@ -73,6 +103,37 @@ public sealed class StateBuilder<TState> where TState : class
             {
                 callback(typed);
             }
+            return Task.CompletedTask;
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an async callback to run when the machine transitions into <typeparamref name="TState"/> with a typed payload.
+    /// </summary>
+    public StateBuilder<TState> OnEntryWithAsync<TPayload>(Func<TState, TPayload, Task> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnEntry(typeof(TState), (m, payload) =>
+        {
+            if (payload is TPayload typed)
+                return callback((TState)m.GetCurrentState()!, typed);
+            return Task.CompletedTask;
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an async payload-only callback to run when the machine transitions into <typeparamref name="TState"/>.
+    /// </summary>
+    public StateBuilder<TState> OnEntryWithAsync<TPayload>(Func<TPayload, Task> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnEntry(typeof(TState), (_, payload) =>
+        {
+            if (payload is TPayload typed)
+                return callback(typed);
+            return Task.CompletedTask;
         });
         return this;
     }
@@ -85,7 +146,11 @@ public sealed class StateBuilder<TState> where TState : class
     public StateBuilder<TState> OnExit(Action<TState, IStateMachine> callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
-        _machine.AddOnExit(typeof(TState), (m, _) => callback((TState)m.GetCurrentState()!, m));
+        _machine.AddOnExit(typeof(TState), (m, _) =>
+        {
+            callback((TState)m.GetCurrentState()!, m);
+            return Task.CompletedTask;
+        });
         return this;
     }
 
@@ -96,14 +161,68 @@ public sealed class StateBuilder<TState> where TState : class
     public StateBuilder<TState> OnExit(Action callback)
     {
         if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnExit(typeof(TState), (_, _) =>
+        {
+            callback();
+            return Task.CompletedTask;
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an async callback to run when the machine transitions out of <typeparamref name="TState"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
+    public StateBuilder<TState> OnExitAsync(Func<TState, IStateMachine, Task> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnExit(typeof(TState), (m, _) => callback((TState)m.GetCurrentState()!, m));
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a parameterless async callback to run when the machine transitions out of <typeparamref name="TState"/>.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
+    public StateBuilder<TState> OnExitAsync(Func<Task> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
         _machine.AddOnExit(typeof(TState), (_, _) => callback());
         return this;
     }
 
     /// <summary>
+    /// Registers an async callback to run when the machine transitions out of <typeparamref name="TState"/> with a typed payload.
+    /// </summary>
+    public StateBuilder<TState> OnExitWithAsync<TPayload>(Func<TState, TPayload, Task> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnExit(typeof(TState), (m, payload) =>
+        {
+            if (payload is TPayload typed)
+                return callback((TState)m.GetCurrentState()!, typed);
+            return Task.CompletedTask;
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an async payload-only callback to run when the machine transitions out of <typeparamref name="TState"/>.
+    /// </summary>
+    public StateBuilder<TState> OnExitWithAsync<TPayload>(Func<TPayload, Task> callback)
+    {
+        if (callback is null) throw new ArgumentNullException(nameof(callback));
+        _machine.AddOnExit(typeof(TState), (_, payload) =>
+        {
+            if (payload is TPayload typed)
+                return callback(typed);
+            return Task.CompletedTask;
+        });
+        return this;
+    }
+
+    /// <summary>
     /// Registers a callback to run when the machine transitions out of <typeparamref name="TState"/> with a typed payload.
-    /// The callback receives the state instance and the payload passed to
-    /// <see cref="StateMachine.Fire(object, object?)"/> or <see cref="StateMachine.SetCurrentState{T}(object?)"/>.
     /// </summary>
     /// <typeparam name="TPayload">Expected payload type. If the supplied payload is not assignable to <typeparamref name="TPayload"/> the callback is silently skipped; the transition itself still proceeds.</typeparam>
     /// <exception cref="ArgumentNullException"><paramref name="callback"/> is <c>null</c>.</exception>
@@ -116,6 +235,7 @@ public sealed class StateBuilder<TState> where TState : class
             {
                 callback((TState)m.GetCurrentState()!, typed);
             }
+            return Task.CompletedTask;
         });
         return this;
     }
@@ -134,6 +254,7 @@ public sealed class StateBuilder<TState> where TState : class
             {
                 callback(typed);
             }
+            return Task.CompletedTask;
         });
         return this;
     }

@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace Statement;
 
 /// <summary>
@@ -34,4 +36,14 @@ public class StateMachine<T> : StateMachine where T : class
     /// the target state's <c>OnEntryWith</c> callback.
     /// </summary>
     public new void SetCurrentState<TState>(object? payload) where TState : T => SetCurrentStateByType(typeof(TState), payload);
+
+    /// <summary>
+    /// Asynchronously transitions to <typeparamref name="TState"/>.
+    /// </summary>
+    public new Task SetCurrentStateAsync<TState>() where TState : T => SetCurrentStateByTypeAsync(typeof(TState));
+
+    /// <summary>
+    /// Asynchronously transitions to <typeparamref name="TState"/> with a typed <paramref name="payload"/>.
+    /// </summary>
+    public new Task SetCurrentStateAsync<TState>(object? payload) where TState : T => SetCurrentStateByTypeAsync(typeof(TState), payload);
 }
