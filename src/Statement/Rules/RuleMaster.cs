@@ -26,6 +26,8 @@ internal class RuleMaster
             return true;
         }
         
+        // Forbidden takes precedence: a state can be in both lists, 
+        // and forbidden will block the transition
         if (!IsAllowedByCurrentState(rule, target.Type))
         {
             return false;

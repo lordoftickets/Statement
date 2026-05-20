@@ -287,4 +287,16 @@ public sealed class StateBuilder<TState> where TState : class
         _machine.AddForbiddenNextState(typeof(TState), typeof(TForbidden));
         return this;
     }
+
+    /// <summary>
+    /// Adds a rule allowing direct transitions from <typeparamref name="TState"/> to <typeparamref name="TLegal"/>.
+    /// When allowed states are specified, only those states may be transitioned to from this state.
+    /// Chain multiple calls to define all legal targets.
+    /// </summary>
+    /// <typeparam name="TLegal">A state type that may be transitioned to from this state.</typeparam>
+    public StateBuilder<TState> CanTransitionTo<TLegal>()
+    {
+        _machine.AddAllowedNextState(typeof(TState), typeof(TLegal));
+        return this;
+    }
 }

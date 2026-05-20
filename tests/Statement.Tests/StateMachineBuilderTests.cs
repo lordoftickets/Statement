@@ -1,3 +1,4 @@
+using Statement.Failures;
 using Statement.Tests.TestStates;
 using Statement.Tests.TestStates.Statement;
 using Statement.Fluent.Api;
@@ -122,5 +123,47 @@ public class StateMachineBuilderTests
 
         Assert.That(machine.GetCurrentState<IUnitTestState>(), Is.SameAs(preBuilt));
     }
+    
+    [Test]
+    public void CanTransition_LegalNextTargetIsSet()
+    {
+        var machine = StateMachineBuilder.New()
+            .AddState<SimpleUnitTestState>(state => state.CanTransitionTo<AdvancedUnitTestState>())
+            .AddState<AdvancedUnitTestState>()
+            .StartIn<SimpleUnitTestState>()
+            .Build();
+        
+        Assert.That(machine.GetCurrentState(), Is.TypeOf<SimpleUnitTestState>());
+    }
 
+    [Test]
+    public void CannotTransition_LegalNextTargetIsWrong()
+    {
+        var machine = StateMachineBuilder.New()
+            .OnTransitionFailure(TransitionFailurePolicy.Throw)
+            .AddState<InitialUnitTestState>(state => state.CanTransitionTo<SimpleUnitTestState>())
+            .AddState<AdvancedUnitTestState>()
+            .StartIn<InitialUnitTestState>()
+            .Build();
+        
+        Assert.Throws<TransitionFailedException>(() => machine.SetCurrentState<AdvancedUnitTestState>());
+    }
+    
+    [Test]
+    public void CanTransition_MultipleLegalNextTargets()
+    {
+        var machine = StateMachineBuilder.New()
+            .AddState<SimpleUnitTestState>(state => state
+                .CanTransitionTo<AdvancedUnitTestState>()
+                .CanTransitionTo<SimpleUnitTestState>())
+            .AddState<AdvancedUnitTestState>()
+            .StartIn<SimpleUnitTestState>()
+            .Build();
+        
+        machine.SetCurrentState<AdvancedUnitTestState>();
+        Assert.That(machine.GetCurrentState(), Is.TypeOf<AdvancedUnitTestState>());
+        
+        machine.SetCurrentState<SimpleUnitTestState>();
+        Assert.That(machine.GetCurrentState(), Is.TypeOf<SimpleUnitTestState>());       
+    }
 }

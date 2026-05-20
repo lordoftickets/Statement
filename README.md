@@ -13,7 +13,7 @@ In Statement, **each state is its own class**. Transitions are expressed by swit
 ## Features
 
 - States as first-class types — no string identifiers, no enums.
-- Fluent `StateMachineBuilder` API with `OnEntry` / `OnExit` / `CannotTransitionTo` rules.
+- Fluent `StateMachineBuilder` API with `OnEntry` / `OnExit` / `CanTransitionTo` / `CannotTransitionTo` rules.
 - Optional typed machines (`StateMachineBuilder.For<TBase>()`) for compile-time safety.
 - Register states by type (auto-instantiated) or by pre-built instance (for states with constructor arguments).
 - Built-in `IStatement` interface for states that prefer to own their own entry/exit logic.
@@ -45,7 +45,10 @@ using Statement.Fluent.Api;
 
 var machine = StateMachineBuilder.New()
     .AddState<Idle>()
-    .AddState<Running>(s => s.CannotTransitionTo<Idle>()) // example rule
+    .AddState<Running>(s => s
+        .CanTransitionTo<Idle>()        // allow-list: only these targets
+        .CanTransitionTo<Faulted>())
+    .AddState<Faulted>()
     .StartIn<Idle>()
     .Build();
 
@@ -53,9 +56,25 @@ machine.SetCurrentState<Running>();          // fires Running.OnEntry
 var current = machine.GetCurrentState();     // returns the Running instance
 ```
 
-### Forbidding multiple transition targets
+### Transition rules: allow-list and forbidden
 
-Chain `CannotTransitionTo<T>()` to forbid more than one next state from the same source:
+By default, all transitions are allowed. Use `CanTransitionTo<T>()` to define an explicit allow-list — when called, only the specified targets are legal from that state:
+
+```csharp
+var machine = StateMachineBuilder.New()
+    .AddState<Idle>(s => s
+        .CanTransitionTo<Running>()
+        .CanTransitionTo<Shutdown>())
+    .AddState<Running>()
+    .AddState<Shutdown>()
+    .StartIn<Idle>()
+    .Build();
+
+machine.SetCurrentState<Running>();    // OK
+machine.SetCurrentState<Shutdown>();   // OK (after being in Idle)
+```
+
+Alternatively, forbid specific targets using `CannotTransitionTo<T>()`:
 
 ```csharp
 var machine = StateMachineBuilder.New()
@@ -68,7 +87,7 @@ var machine = StateMachineBuilder.New()
     .Build();
 ```
 
-Attempts to switch into any forbidden target while `Running` is active are silently ignored by default. See the next section to change that.
+When both allow-list and forbidden rules exist on the same state, forbidden takes precedence. Attempts to switch into any blocked target are silently ignored by default. See the next section to change that.
 
 ### Handling failed transitions
 
