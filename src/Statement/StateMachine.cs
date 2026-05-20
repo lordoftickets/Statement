@@ -260,7 +260,7 @@ public class StateMachine : IStateMachine
         }
     }
 
-    internal void AddExitRule(Type stateType, Type forbiddenTarget)
+    internal void AddForbiddenNextState(Type stateType, Type forbiddenTarget)
     {
         if (!_nodes.TryGetValue(stateType, out var node))
         {
@@ -269,6 +269,17 @@ public class StateMachine : IStateMachine
 
         node.TransitionRule ??= new TransitionRule();
         node.TransitionRule.ForbiddenNextStates.Add(forbiddenTarget);
+    }
+
+    internal void AddAllowedNextState(Type stateType, Type allowedNextState)
+    {
+        if (!_nodes.TryGetValue(stateType, out var node))
+        {
+            return;
+        }
+        
+        node.TransitionRule ??= new TransitionRule();
+        node.TransitionRule.AllowedNextStates.Add(allowedNextState);
     }
 
     internal void AddTriggerHandler(Type stateType, object triggerKey, TriggerHandler handler)

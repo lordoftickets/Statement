@@ -79,4 +79,66 @@ public class RuleMasterTests
 
         Assert.That(_ruleMaster.IsAllowed(current, target), Is.True);
     }
+
+    [Test]
+    public void IsAllowed_NextStateIsLegalTarget_ReturnTrue()
+    {
+        var current = new StateNode(typeof(SimpleUnitTestState))
+        {
+            TransitionRule = new TransitionRule
+            {
+                AllowedNextStates = { typeof(AdvancedUnitTestState) }
+            }
+        };
+        
+        var target = new StateNode(typeof(AdvancedUnitTestState));
+        
+        Assert.That(_ruleMaster.IsAllowed(current, target), Is.True);   
+    }
+    
+    [Test]
+    public void IsNotAllowed_NextStateIsNoLegalTarget_ReturnFalse()
+    {
+        var current = new StateNode(typeof(SimpleUnitTestState))
+        {
+            TransitionRule = new TransitionRule
+            {
+                AllowedNextStates = { typeof(InitialUnitTestState), typeof(ExtraUnitTestState) }
+            }
+        };
+        
+        var target = new StateNode(typeof(AdvancedUnitTestState));
+        
+        Assert.That(_ruleMaster.IsAllowed(current, target), Is.False);   
+    }
+
+    [Test]
+    public void IsAllowed_NoLegalNextTarget_ReturnsTrue()
+    {
+        var current = new StateNode(typeof(SimpleUnitTestState))
+        {
+            TransitionRule = new TransitionRule()
+        };
+        
+        var target = new StateNode(typeof(AdvancedUnitTestState));
+        
+        Assert.That(_ruleMaster.IsAllowed(current, target), Is.True);  
+    }
+    
+    [Test]
+    public void IsNotAllowed_NextStateIsLegalTarget_ButForbidden_ReturnFalse()
+    {
+        var current = new StateNode(typeof(SimpleUnitTestState))
+        {
+            TransitionRule = new TransitionRule
+            {
+                AllowedNextStates = { typeof(AdvancedUnitTestState) },
+                ForbiddenNextStates = { typeof(AdvancedUnitTestState) }
+            }
+        };
+        
+        var target = new StateNode(typeof(AdvancedUnitTestState));
+        
+        Assert.That(_ruleMaster.IsAllowed(current, target), Is.False); 
+    }
 }

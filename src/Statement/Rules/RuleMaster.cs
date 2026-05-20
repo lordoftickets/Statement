@@ -25,8 +25,13 @@ internal class RuleMaster
         {
             return true;
         }
-
+        
         if (!IsAllowedByCurrentState(rule, target.Type))
+        {
+            return false;
+        }
+
+        if (!IsLegalTarget(rule, target.Type))
         {
             return false;
         }
@@ -39,6 +44,9 @@ internal class RuleMaster
         return true;
     }
 
-    private bool IsAllowedByCurrentState(TransitionRule rule, Type targetState)
+    private static bool IsAllowedByCurrentState(TransitionRule rule, Type targetState)
         => !rule.ForbiddenNextStates.Contains(targetState);
+
+    private static bool IsLegalTarget(TransitionRule rule, Type targetState)
+        => rule.AllowedNextStates.Count == 0 || rule.AllowedNextStates.Contains(targetState);
 }

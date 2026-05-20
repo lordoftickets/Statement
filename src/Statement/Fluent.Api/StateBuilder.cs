@@ -284,7 +284,7 @@ public sealed class StateBuilder<TState> where TState : class
     /// <typeparam name="TForbidden">The state type that may not be transitioned to from this state.</typeparam>
     public StateBuilder<TState> CannotTransitionTo<TForbidden>()
     {
-        _machine.AddExitRule(typeof(TState), typeof(TForbidden));
+        _machine.AddForbiddenNextState(typeof(TState), typeof(TForbidden));
         return this;
     }
 }
