@@ -1,4 +1,4 @@
-using Statement.Rules;
+﻿using Statement.Rules;
 using Statement.Tests.TestStates;
 
 namespace Statement.Tests;
@@ -148,7 +148,7 @@ public class RuleMasterTests
     public void CheckType_CurrentIsNull_ThrowsInvalidOperationException()
     {
         Assert.Throws<InvalidOperationException>(
-            () => _ruleMaster.CheckIfTypeIsValidNextState(null, typeof(SimpleUnitTestState)));
+            () => _ruleMaster.CheckIfTypeIsValidNextState(null, new StateNode(typeof(SimpleUnitTestState))));
     }
 
     [Test]
@@ -156,7 +156,7 @@ public class RuleMasterTests
     {
         var current = new StateNode(typeof(SimpleUnitTestState));
 
-        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, typeof(AdvancedUnitTestState)), Is.True);
+        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, new StateNode(typeof(AdvancedUnitTestState))), Is.True);
     }
 
     [Test]
@@ -167,7 +167,7 @@ public class RuleMasterTests
             TransitionRule = new TransitionRule()
         };
 
-        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, typeof(AdvancedUnitTestState)), Is.True);
+        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, new StateNode(typeof(AdvancedUnitTestState))), Is.True);
     }
 
     [Test]
@@ -181,7 +181,7 @@ public class RuleMasterTests
             }
         };
 
-        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, typeof(AdvancedUnitTestState)), Is.False);
+        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, new StateNode(typeof(AdvancedUnitTestState))), Is.False);
     }
 
     [Test]
@@ -195,7 +195,7 @@ public class RuleMasterTests
             }
         };
 
-        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, typeof(AdvancedUnitTestState)), Is.True);
+        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, new StateNode(typeof(AdvancedUnitTestState))), Is.True);
     }
 
     [Test]
@@ -209,7 +209,7 @@ public class RuleMasterTests
             }
         };
 
-        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, typeof(AdvancedUnitTestState)), Is.True);
+        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, new StateNode(typeof(AdvancedUnitTestState))), Is.True);
     }
 
     [Test]
@@ -223,7 +223,7 @@ public class RuleMasterTests
             }
         };
 
-        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, typeof(AdvancedUnitTestState)), Is.False);
+        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, new StateNode(typeof(AdvancedUnitTestState))), Is.False);
     }
 
     [Test]
@@ -238,7 +238,7 @@ public class RuleMasterTests
             }
         };
 
-        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, typeof(AdvancedUnitTestState)), Is.False);
+        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, new StateNode(typeof(AdvancedUnitTestState))), Is.False);
     }
 
     [Test]
@@ -249,8 +249,9 @@ public class RuleMasterTests
             TransitionRule = new TransitionRule()
         };
 
-        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, typeof(InitialUnitTestState)), Is.True);
+        Assert.That(_ruleMaster.CheckIfTypeIsValidNextState(current, new StateNode(typeof(InitialUnitTestState))), Is.True);
     }
 
     #endregion
 }
+

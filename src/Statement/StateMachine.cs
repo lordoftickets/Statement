@@ -59,6 +59,42 @@ public class StateMachine
     public void Resume() =>  ExecutionState = StateMachineState.Active;
 
     /// <summary>
+    /// Marks the registered state <typeparamref name="T"/> as active, making it a valid transition target again.
+    /// </summary>
+    /// <remarks>
+    /// States are active by default; this only has an observable effect after a prior <see cref="DeactivateState{T}"/> call.
+    /// Has no effect if <typeparamref name="T"/> is not registered on this machine. Does not affect the current state or
+    /// any in-flight transition — it only gates future transition checks performed by the rule evaluator.
+    /// </remarks>
+    /// <typeparam name="T">The registered state type to activate.</typeparam>
+    public void ActivateState<T>()
+    {
+        if (_nodes.TryGetValue(typeof(T), out var target))
+        {
+            target.IsActive = true;
+        }
+    }
+
+    /// <summary>
+    /// Marks the registered state <typeparamref name="T"/> as inactive, preventing future transitions into it.
+    /// </summary>
+    /// <remarks>
+    /// While inactive, the rule evaluator rejects transitions targeting <typeparamref name="T"/>, and triggers whose
+    /// handler targets <typeparamref name="T"/> will be reported as not fireable by <see cref="CanTrigger"/> /
+    /// <see cref="CanFire"/>. Has no effect if <typeparamref name="T"/> is not registered, and does not interrupt
+    /// the current state or any in-flight transition — even if the deactivated state happens to be the current one.
+    /// Re-enable with <see cref="ActivateState{T}"/>.
+    /// </remarks>
+    /// <typeparam name="T">The registered state type to deactivate.</typeparam>
+    public void DeactivateState<T>()
+    {
+        if (_nodes.TryGetValue(typeof(T), out var target))
+        {
+            target.IsActive = false;
+        }
+    }
+
+    /// <summary>
     /// Transitions the machine to the registered state of type <typeparamref name="T"/>.
     /// The transition is silently ignored if the target state is not registered or is blocked by a transition rule.
     /// Exit callbacks of the previous state and entry callbacks of the new state run as part of the transition.
@@ -389,7 +425,9 @@ public class StateMachine
     /// <param name="possibleNextState">The target state type to check.</param>
     /// <remarks>will throw <see cref="InvalidOperationException"/> if method was called before final build of <see cref="StateMachine"/></remarks>
     /// <returns><c>true</c> if the transition is allowed; otherwise <c>false</c>.</returns>
-    public bool CanTransitionTo(Type possibleNextState) => _ruleMaster.CheckIfTypeIsValidNextState(_current, possibleNextState);
+    public bool CanTransitionTo(Type possibleNextState)
+        => _nodes.TryGetValue(possibleNextState, out var target)
+           && _ruleMaster.CheckIfTypeIsValidNextState(_current, target);
 
     /// <summary>
     /// Returns the triggers that the current state has handlers registered for.
@@ -440,7 +478,9 @@ public class StateMachine
         }
 
         var triggerHandler = _current.Triggers[TriggerKey.Of(trigger)];
-        if (triggerHandler?.Target != null && _ruleMaster.CheckIfTypeIsValidNextState(_current, triggerHandler.Target))
+        if (triggerHandler?.Target != null
+            && _nodes.TryGetValue(triggerHandler.Target, out var target)
+            && _ruleMaster.CheckIfTypeIsValidNextState(_current, target))
         {
             return true;
         }
@@ -487,7 +527,8 @@ public class StateMachine
 
         var triggerHandler = _current.Triggers[TriggerKey.Of(trigger)];
         return triggerHandler?.Target != null
-               && _ruleMaster.CheckIfTypeIsValidNextState(_current, triggerHandler.Target)
+               && _nodes.TryGetValue(triggerHandler.Target, out var target)
+               && _ruleMaster.CheckIfTypeIsValidNextState(_current, target)
                && (triggerHandler.Guard is null || triggerHandler.Guard(payload));
     }
     
